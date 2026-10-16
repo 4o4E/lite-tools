@@ -240,12 +240,17 @@ function isGif(data: Buffer): boolean {
 }
 
 // 附加功能，下载本地贴纸试图保存商城表情时如果没有下载原始数据时的处理逻辑
-ipcMain.handle("lite_tools.fetchMarketEmoticon", async (e, marketFaceElement) => {
+ipcMain.handle("lite_tools.fetchMarketEmoticon", async (event, marketFaceElement) => {
   const { promise, resolve } = Promise.withResolvers();
   const { staticFacePath } = marketFaceElement;
   fetchMarketEmoticon.set(staticFacePath, resolve);
-  await promise;
-  return true;
+  try {
+    downloadMarketFace(marketFaceElement, event.sender.id);
+    await promise;
+    return true;
+  } finally {
+    fetchMarketEmoticon.delete(staticFacePath);
+  }
 });
 
 export { convertMarketFaceToPic };
