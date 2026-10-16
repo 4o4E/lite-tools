@@ -1,8 +1,11 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { webContents } from "electron";
+import { webContents, ipcMain } from "electron";
 import { dispatchIpcEvent } from "@/main/utils/dispatchIpcEvent";
 import { configManager } from "@/main/modules/configManager";
 
+type ResolveFn<T> = (value: T | PromiseLike<T>) => void;
+
+const fetchMarketEmoticon = new Map<string, ResolveFn<void>>();
 const faceFilePaths = new Map<string, string>();
 const awaitIsFileExist = new Map<
   string,
@@ -91,6 +94,12 @@ function downloadMarketFace(marketFaceElement: any, webContentId: number) {
     if (existsSync(dynamicFacePath)) {
       decodeQqMarketface(marketFaceElement.dynamicFacePath, staticFacePath);
     }
+    // 如果是本地表情发起的下载请求，则需要消费promise
+    const resolve = fetchMarketEmoticon.get(staticFacePath);
+    if (resolve) {
+      resolve();
+      fetchMarketEmoticon.delete(staticFacePath);
+    }
     return;
   }
 
@@ -130,7 +139,7 @@ function downloadMarketFace(marketFaceElement: any, webContentId: number) {
 IpcInterceptor.interceptIpcSendEvents(
   "nodeIKernelMsgListener/onEmojiDownloadComplete",
   (_channel: string, _event: any, args: any) => {
-    if (!configManager.value.message.marketFaceToPicElement) {
+    if (!configManager.value.message.marketFaceToPicElement && fetchMarketEmoticon.size === 0) {
       return;
     }
 
@@ -155,6 +164,13 @@ IpcInterceptor.interceptIpcSendEvents(
       item?.cb();
       awaitIsFileExist.delete(staticFacePath);
       faceFilePaths.delete(staticFacePath);
+
+      // 如果是本地表情发起的下载请求，则需要消费promise
+      const resolve = fetchMarketEmoticon.get(staticFacePath);
+      if (resolve) {
+        resolve();
+        fetchMarketEmoticon.delete(staticFacePath);
+      }
     }
   },
 );
@@ -222,5 +238,14 @@ function isGif(data: Buffer): boolean {
   const header = data.subarray(0, 6).toString("ascii");
   return header === "GIF87a" || header === "GIF89a";
 }
+
+// 附加功能，下载本地贴纸试图保存商城表情时如果没有下载原始数据时的处理逻辑
+ipcMain.handle("lite_tools.fetchMarketEmoticon", async (e, marketFaceElement) => {
+  const { promise, resolve } = Promise.withResolvers();
+  const { staticFacePath } = marketFaceElement;
+  fetchMarketEmoticon.set(staticFacePath, resolve);
+  await promise;
+  return true;
+});
 
 export { convertMarketFaceToPic };
