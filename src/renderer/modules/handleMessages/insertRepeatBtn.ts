@@ -7,7 +7,7 @@ import { createSlot } from "./messageSlot";
 
 import type { MessageElement, SlotElement } from "./type";
 
-const repeatElementType = [ElementType.textElement, ElementType.picElement];
+const repeatElementType = [ElementType.textElement, ElementType.picElement, ElementType.marketFaceElement];
 
 function insertRepeatBtn(slot: SlotElement, msgRecord: any, messageEl: MessageElement) {
   if (messageEl.querySelector(".lt-repeat")) return;
