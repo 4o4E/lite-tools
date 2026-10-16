@@ -32,6 +32,8 @@ const exposeFunctions = {
   downloadTgSticker: (tgStickerUrl: string) =>
     ipcRenderer.send("lite_tools.stickerPacksManager.downloadTgSticker", tgStickerUrl),
   updateRecentStickers: (sticker: Sticker) => ipcRenderer.send("lite_tools.stickerStore.updateRecentStickers", sticker),
+  fetchMarketEmoticon: (marketFaceElement: any) =>
+    ipcRenderer.invoke("lite_tools.fetchMarketEmoticon", marketFaceElement),
 
   // 通用操作接口
   copyFile: (sourceFilePath: string, targetFilePath: string) =>

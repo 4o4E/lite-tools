@@ -42,6 +42,7 @@ declare global {
 
 let rawContextMenu: HTMLElement;
 let picPath: string;
+let marketFaceElement: any | null;
 
 async function setupLocalStickers() {
   await configStore.ready;
@@ -58,12 +59,27 @@ async function setupLocalStickers() {
     if (e.button === 2) {
       const messageEl = (e.target as HTMLElement).closest(".message");
       if (messageEl) {
+        marketFaceElement = null;
+        picPath = "";
         messageEl.__VUE__?.some((item) => {
           const elements = item?.props?.msgRecord?.elements || [];
           const targetElement = elements.find((el: any) => el.elementType === 11 || el.elementType === 2);
           if (targetElement) {
             if (targetElement.elementType === 11) {
               picPath = targetElement.marketFaceElement?.staticFacePath as string;
+              const source = targetElement.marketFaceElement;
+              picPath = source?.staticFacePath ?? "";
+              marketFaceElement = source
+                ? {
+                    staticFacePath: source.staticFacePath,
+                    dynamicFacePath: source.dynamicFacePath,
+                    emojiId: source.emojiId,
+                    emojiPackageId: source.emojiPackageId,
+                    faceName: source.faceName,
+                    imageHeight: source.imageHeight,
+                    key: source.key,
+                  }
+                : null;
             } else if (targetElement.elementType === 2) {
               picPath = targetElement.picElement?.sourcePath as string;
             }
@@ -268,6 +284,9 @@ function buildStickerMenu(packs: StickerPackType[], sourceFilePath: string, getR
             e.preventDefault();
             console.log(`添加到贴纸集: ${label}`);
             // patha: sourceFilePath, pathb: packPath (目标文件夹)
+            if (marketFaceElement) {
+              await lite_tools.fetchMarketEmoticon(marketFaceElement);
+            }
             const result = await lite_tools.copyFile(sourceFilePath, packPath);
             if (result.success) {
               toastManager.show("添加成功", "success", 3000);
@@ -286,6 +305,9 @@ function buildStickerMenu(packs: StickerPackType[], sourceFilePath: string, getR
           e.stopPropagation();
           e.preventDefault();
           log(`添加到贴纸集: ${label}`);
+          if (marketFaceElement) {
+            await lite_tools.fetchMarketEmoticon(marketFaceElement);
+          }
           const result = await lite_tools.copyFile(sourceFilePath, packPath);
           if (result.success) {
             toastManager.show("添加成功", "success", 3000);
