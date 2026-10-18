@@ -403,6 +403,26 @@
   overflow: unset !important;
 }
 
+.user-name .lt-at-user-name {
+  display: inline;
+  cursor: pointer;
+  border-radius: 4px;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+
+  &:hover {
+    color: var(--brand_standard);
+    background-color: var(--overlay_hover, rgba(127, 127, 127, 0.12));
+
+    &::before {
+      content: "@";
+      margin-right: 1px;
+      color: var(--brand_standard);
+    }
+  }
+}
+
 .lt-msg-child {
   .message__timestamp {
     margin-top: 8px !important;

@@ -11,6 +11,7 @@ import { setupRevealMask, revealMask } from "./revealMask";
 import { insertSlot } from "./messageSlot";
 import { insertTime } from "./insertTime";
 import { insertRepeatBtn } from "./insertRepeatBtn";
+import { bindUserNameAt } from "./nameAt";
 import { chatObserverManager } from "./chatObserverManager";
 
 import type { MessageElement, SlotElement } from "./type";
@@ -67,6 +68,11 @@ function handleMessages(component: any) {
   if (component?.vnode?.el && component?.props?.msgRecord && !processedInstances.has(component)) {
     if (!checkChatType(component.props.msgRecord) || !component.vnode.el?.classList?.contains?.("message")) return;
     processedInstances.add(component);
+    try {
+      bindUserNameAt(component.vnode.el, component.props.msgRecord);
+    } catch (error) {
+      log("昵称 @ 绑定失败", error);
+    }
     const isNewVersion = !!component.vnode.el.querySelector(".message-native");
     // 消息合并-有卡顿
     if (0) {
