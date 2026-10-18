@@ -24,10 +24,11 @@ async function updateTopFuncBar() {
   function initTopFuncBar(funcs: HTMLElement[]) {
     funcs.forEach((element) => {
       const id = element.id;
-      let name = element.querySelector(".icon-item")!.getAttribute("aria-label")!;
+      let name = element.querySelector<HTMLElement>(".icon-item")?.getAttribute("aria-label") ?? "";
       if (!name) {
-        name = element.closest(".bar-icon")!.getAttribute("aria-label")!;
+        name = element.closest<HTMLElement>(".bar-icon")?.getAttribute("aria-label") ?? "";
       }
+      if (!name) return;
       topFuncMap.set(id, {
         name,
         id,
@@ -49,23 +50,26 @@ async function updateTopFuncBar() {
   }
 
   closeTopObserver?.();
-  closeTopObserver = observeMutations(
-    document.querySelector(".panel-header__action .func-bar-native")!,
-    () => {
-      const funcs = Array.from(
-        document.querySelectorAll<HTMLElement>(".panel-header__action .func-bar-native>div"),
-      ).filter((item) => item.style.display !== "none");
-      initTopFuncBar(funcs);
-      hiddenFuncBtn(funcs, configStore.value.topFuncBar);
-    },
-    {
-      attributeFilter: ["style"],
-      attributes: true,
-      subtree: true,
-      childList: true,
-      autoDisconnect: 1000,
-    },
-  );
+  const topFuncBarRoot = document.querySelector<HTMLElement>(".panel-header__action .func-bar-native");
+  if (topFuncBarRoot) {
+    closeTopObserver = observeMutations(
+      topFuncBarRoot,
+      () => {
+        const funcs = Array.from(
+          document.querySelectorAll<HTMLElement>(".panel-header__action .func-bar-native>div"),
+        ).filter((item) => item.style.display !== "none");
+        initTopFuncBar(funcs);
+        hiddenFuncBtn(funcs, configStore.value.topFuncBar);
+      },
+      {
+        attributeFilter: ["style"],
+        attributes: true,
+        subtree: true,
+        childList: true,
+        autoDisconnect: 1000,
+      },
+    );
+  }
 
   hiddenFuncBtn(funcs, configStore.value.topFuncBar);
 }
@@ -85,7 +89,8 @@ async function updateChatFuncBar() {
   function initChatFuncBar(funcs: HTMLElement[]) {
     funcs.forEach((element) => {
       const id = element.id;
-      const name = element.querySelector(".icon-item")!.getAttribute("aria-label")!;
+      const name = element.querySelector<HTMLElement>(".icon-item")?.getAttribute("aria-label") ?? "";
+      if (!name) return;
       chatFuncMap.set(id, {
         name,
         id,
@@ -107,23 +112,26 @@ async function updateChatFuncBar() {
   }
 
   closeChatObserver?.();
-  closeChatObserver = observeMutations(
-    document.querySelector(".chat-func-bar .func-bar-native:first-child")!,
-    () => {
-      const funcs = Array.from(document.querySelectorAll<HTMLElement>(".chat-func-bar .func-bar-native>div")).filter(
-        (item) => item.style.display !== "none",
-      );
-      initChatFuncBar(funcs);
-      hiddenFuncBtn(funcs, configStore.value.chatFuncBar);
-    },
-    {
-      attributeFilter: ["style"],
-      attributes: true,
-      subtree: true,
-      childList: true,
-      autoDisconnect: 1000,
-    },
-  );
+  const chatFuncBarRoot = document.querySelector<HTMLElement>(".chat-func-bar .func-bar-native:first-child");
+  if (chatFuncBarRoot) {
+    closeChatObserver = observeMutations(
+      chatFuncBarRoot,
+      () => {
+        const funcs = Array.from(document.querySelectorAll<HTMLElement>(".chat-func-bar .func-bar-native>div")).filter(
+          (item) => item.style.display !== "none",
+        );
+        initChatFuncBar(funcs);
+        hiddenFuncBtn(funcs, configStore.value.chatFuncBar);
+      },
+      {
+        attributeFilter: ["style"],
+        attributes: true,
+        subtree: true,
+        childList: true,
+        autoDisconnect: 1000,
+      },
+    );
+  }
 
   hiddenFuncBtn(funcs, configStore.value.chatFuncBar);
 }
