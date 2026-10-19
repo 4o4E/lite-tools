@@ -9,54 +9,133 @@ import type { MessageElement, SlotElement } from "./type";
 
 const repeatElementType = [ElementType.textElement, ElementType.picElement, ElementType.marketFaceElement];
 
-function insertRepeatBtn(slot: SlotElement, msgRecord: any, messageEl: MessageElement) {
-  if (messageEl.querySelector(".lt-repeat")) return;
+interface RepeatContext {
+  messageEl: MessageElement;
+  msgId: string;
+  peer: Peer;
+}
 
+type GetMessageRecord = (messageEl: MessageElement) => Message | undefined;
+
+function isHoverRepeatEnabled() {
+  const config = configStore.value.message.repeatMessage;
+  return config.enabled && config.position === "hover";
+}
+
+function canRepeatMessage(msgRecord: Message | undefined) {
+  return (
+    !!msgRecord &&
+    !msgRecord.lt_recall &&
+    Array.isArray(msgRecord.elements) &&
+    msgRecord.elements.some((element) => repeatElementType.includes(element.elementType))
+  );
+}
+
+function createRepeatContext(messageEl: MessageElement, msgRecord: Message | undefined): RepeatContext | null {
+  const peer = aioStore.getPeer();
   if (
-    msgRecord.elements.some((element: any) => {
-      return repeatElementType.includes(element.elementType);
-    })
+    !messageEl.isConnected ||
+    !msgRecord ||
+    ![1, 2, 100].includes(msgRecord.chatType) ||
+    !canRepeatMessage(msgRecord) ||
+    !msgRecord.msgId ||
+    messageEl.closest(".ml-item")?.id !== msgRecord.msgId ||
+    !peer.peerUid ||
+    peer.chatType !== msgRecord.chatType ||
+    peer.peerUid !== msgRecord.peerUid
   ) {
-    let doubleClick = false;
-    const btn = document.createElement("span");
-    const msgId = msgRecord.msgId;
-    btn.classList.add("lt-repeat");
-    btn.textContent = "+1";
-    btn.addEventListener("click", () => {
-      const peer = {
-        chatType: aioStore.value.chatType,
-        guildId: "",
-        peerUid: aioStore.value.header.uid,
-      };
-      if (configStore.value.message.repeatMessage.doubleClick) {
-        setTimeout(() => {
-          doubleClick = false;
-        }, 500);
-        if (doubleClick) {
-          forwardMessage(peer, peer, [msgId]);
-          doubleClick = false;
-        }
-        doubleClick = true;
-      } else {
-        forwardMessage(peer, peer, [msgId]);
-      }
-    });
-    if (slot.classList.contains("outside")) {
-      const float = slot.children[1] as HTMLElement;
-      float?.insertAdjacentElement("beforeend", btn);
-    } else {
-      const privateSlot = createSlot();
-      privateSlot.classList.add("outside");
-      if (!messageEl.querySelector(".content-status.no-copy")) {
-        const div = document.createElement("div");
-        div.classList.add("content-status", "no-copy", "lt-add");
-        messageEl.querySelector(".message-content__wrapper")?.insertAdjacentElement("afterend", div);
-      }
-      privateSlot.querySelector(".lt-float")?.appendChild(btn);
-      // log("插入外部插槽");
-      messageEl.querySelector(".content-status.no-copy")?.appendChild(privateSlot);
-    }
+    return null;
+  }
+  return { messageEl, msgId: msgRecord.msgId, peer };
+}
+
+function isRepeatContextCurrent(context: RepeatContext, msgRecord: Message | undefined) {
+  const peer = aioStore.getPeer();
+  return (
+    configStore.value.message.repeatMessage.enabled &&
+    context.messageEl.isConnected &&
+    context.messageEl.closest(".ml-item")?.id === context.msgId &&
+    !!msgRecord &&
+    msgRecord.msgId === context.msgId &&
+    canRepeatMessage(msgRecord) &&
+    msgRecord.chatType === context.peer.chatType &&
+    msgRecord.peerUid === context.peer.peerUid &&
+    peer.chatType === context.peer.chatType &&
+    peer.peerUid === context.peer.peerUid
+  );
+}
+
+function repeatMessage(context: RepeatContext, msgRecord: Message | undefined) {
+  if (isRepeatContextCurrent(context, msgRecord)) {
+    forwardMessage(context.peer, context.peer, [context.msgId]);
   }
 }
 
-export { insertRepeatBtn };
+function removeEmptySlots(messageEl: MessageElement) {
+  messageEl.querySelectorAll(".lt-slot").forEach((slot) => {
+    if (!slot.querySelector(".lt-time,.lt-recall,.lt-repeat")) slot.remove();
+  });
+  messageEl.querySelectorAll(".content-status.lt-add").forEach((status) => {
+    if (!status.childElementCount) status.remove();
+  });
+}
+
+function removeRepeatBtn(messageEl: MessageElement) {
+  messageEl.querySelectorAll(".lt-repeat").forEach((button) => button.remove());
+  removeEmptySlots(messageEl);
+}
+
+function insertRepeatBtn(
+  slot: SlotElement,
+  msgRecord: Message,
+  messageEl: MessageElement,
+  getMessageRecord: GetMessageRecord,
+) {
+  if (!isHoverRepeatEnabled() || messageEl.querySelector(".lt-repeat")) return;
+  const context = createRepeatContext(messageEl, msgRecord);
+  if (!context) return;
+
+  let previousClick = 0;
+  const btn = document.createElement("span");
+  btn.classList.add("lt-repeat");
+  btn.textContent = "+1";
+  btn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (!isHoverRepeatEnabled()) return;
+    if (configStore.value.message.repeatMessage.doubleClick) {
+      const now = performance.now();
+      if (!previousClick || now - previousClick > 500) {
+        previousClick = now;
+        return;
+      }
+      previousClick = 0;
+    }
+    repeatMessage(context, getMessageRecord(messageEl));
+  });
+  if (slot.classList.contains("outside")) {
+    slot.querySelector(".lt-float")?.appendChild(btn);
+  } else {
+    const privateSlot = createSlot();
+    privateSlot.classList.add("outside");
+    if (!messageEl.querySelector(".content-status.no-copy")) {
+      const div = document.createElement("div");
+      div.classList.add("content-status", "no-copy", "lt-add");
+      messageEl.querySelector(".message-content__wrapper")?.insertAdjacentElement("afterend", div);
+    }
+    privateSlot.querySelector(".lt-float")?.appendChild(btn);
+    messageEl.querySelector(".content-status.no-copy")?.appendChild(privateSlot);
+  }
+  removeEmptySlots(messageEl);
+}
+
+export {
+  canRepeatMessage,
+  createRepeatContext,
+  insertRepeatBtn,
+  isHoverRepeatEnabled,
+  isRepeatContextCurrent,
+  removeEmptySlots,
+  removeRepeatBtn,
+  repeatMessage,
+};
+export type { GetMessageRecord, RepeatContext };

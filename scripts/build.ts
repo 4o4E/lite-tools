@@ -262,6 +262,7 @@ async function runBuild() {
 }
 
 function getVersionTag() {
+  if (isAlpha) return packageJson.version;
   try {
     const tag = execSync("git describe --tags --exact-match", {
       encoding: "utf-8",

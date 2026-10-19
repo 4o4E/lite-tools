@@ -4,7 +4,7 @@
   "name": "轻量工具箱",
   "slug": "lite-tools",
   "description": "轻量 · 优雅 · 高效",
-  "version": "4.0.0-alpha.dev",
+  "version": "4.0.0-alpha.qqnt53644.20261019.3",
   "icon": "./icon.png",
   "authors": [
     {
@@ -20,7 +20,7 @@
     "preload": "./dist/preload/index.js"
   },
   "repository": {
-    "repo": "xiyuesaves/lite_tools",
-    "branch": "dev/v5"
+    "repo": "4o4E/lite-tools",
+    "branch": "compat/qq-9.9.36"
   }
 }

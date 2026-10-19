@@ -53,12 +53,15 @@
     "videoFileToVideoMsg": false,
     "largPicFileToPicMsg": false,
     "removeReplyAt": false,
+    "clickNameAt": true,
     "repeatMessage": {
       "enabled": false,
-      "doubleClick": false
+      "doubleClick": false,
+      "position": "contextMenu"
     },
     "showSendTime": {
       "enabled": false,
+      "toSenderName": false,
       "showTimeZone": false,
       "timeFormat": "220",
       "dateFormat": "000"

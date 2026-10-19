@@ -1,4 +1,5 @@
 import { createLogger } from "@/renderer/utils/createLogger";
+import { configStore } from "@/renderer/modules/configStore";
 
 const log = createLogger("nameAt");
 
@@ -6,6 +7,7 @@ const groupChatType = 2;
 
 interface AtBinding {
   anchor: HTMLElement;
+  originalTitle: string | null;
   handler: (event: MouseEvent) => Promise<void>;
 }
 
@@ -55,12 +57,12 @@ function readMessageRecord(value: unknown, userNameEl: HTMLElement | null, messa
 function removeAtTarget(targetEl: HTMLElement | null) {
   if (!targetEl) return;
   const binding = bindings.get(targetEl);
-  if (binding) {
-    targetEl.removeEventListener("click", binding.handler, true);
-    bindings.delete(targetEl);
-  }
+  if (!binding) return;
+  targetEl.removeEventListener("click", binding.handler, true);
+  bindings.delete(targetEl);
   targetEl.classList.remove("lt-at-user-name");
-  if (targetEl.title.startsWith("@")) targetEl.removeAttribute("title");
+  if (binding.originalTitle === null) targetEl.removeAttribute("title");
+  else targetEl.setAttribute("title", binding.originalTitle);
 }
 
 function dispatchRightClick(target: HTMLElement, point: { x: number; y: number }) {
@@ -106,6 +108,10 @@ async function openNativeAt(messageEl: HTMLElement, anchorEl: HTMLElement | null
   });
 
   for (let attempt = 0; attempt < 20; attempt++) {
+    if (!configStore.value.message.clickNameAt) {
+      document.querySelector(".q-context-menu")?.remove();
+      return false;
+    }
     const menuItem = findNativeAtMenuItem();
     if (menuItem) {
       menuItem.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true, cancelable: true, view: window }));
@@ -123,6 +129,7 @@ async function openNativeAt(messageEl: HTMLElement, anchorEl: HTMLElement | null
 }
 
 function bindAtTarget(targetEl: HTMLElement, messageEl: HTMLElement, anchorEl: HTMLElement, name: string) {
+  const originalTitle = targetEl.getAttribute("title");
   targetEl.title = `@${name}`;
   targetEl.classList.add("lt-at-user-name");
 
@@ -133,6 +140,13 @@ function bindAtTarget(targetEl: HTMLElement, messageEl: HTMLElement, anchorEl: H
   }
 
   const handler = async (event: MouseEvent) => {
+    if (
+      !configStore.value.message.clickNameAt ||
+      !bindings.has(targetEl) ||
+      (event.target instanceof Element && event.target.closest(".q-tag,.lt-time,.lite-tools-time"))
+    ) {
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
@@ -140,7 +154,7 @@ function bindAtTarget(targetEl: HTMLElement, messageEl: HTMLElement, anchorEl: H
     await openNativeAt(messageEl, anchor);
   };
 
-  bindings.set(targetEl, { anchor: anchorEl, handler });
+  bindings.set(targetEl, { anchor: anchorEl, originalTitle, handler });
   targetEl.addEventListener("click", handler, true);
 }
 
@@ -149,7 +163,10 @@ export function bindUserNameAt(messageEl: Element, msgRecord: unknown) {
 
   const userNameEl = messageEl.querySelector<HTMLElement>(".user-name");
   const record = readMessageRecord(msgRecord, userNameEl, messageEl);
-  if (record.chatType !== groupChatType) return;
+  if (!configStore.value.message.clickNameAt || record.chatType !== groupChatType || record.isSelf || !record.name) {
+    messageEl.querySelectorAll<HTMLElement>(".lt-at-user-name").forEach(removeAtTarget);
+    return;
+  }
 
   const nameTextEl =
     userNameEl?.querySelector<HTMLElement>(":scope > .text-ellipsis") ??
@@ -160,7 +177,7 @@ export function bindUserNameAt(messageEl: Element, msgRecord: unknown) {
         !item.classList.contains("lt-time") &&
         !item.classList.contains("lite-tools-time"),
     ) ??
-    null;
+    userNameEl;
   const avatarEl =
     messageEl.querySelector<HTMLElement>(".avatar-span .avatar") ||
     messageEl.querySelector<HTMLElement>(".avatar-span") ||
@@ -169,11 +186,6 @@ export function bindUserNameAt(messageEl: Element, msgRecord: unknown) {
   // 头像保留 QQ 原生点击行为；只给昵称挂 @。
   removeAtTarget(avatarEl);
   if (!nameTextEl) return;
-  if (record.isSelf) {
-    removeAtTarget(nameTextEl);
-    return;
-  }
-  if (!record.name) return;
 
   bindAtTarget(nameTextEl, messageEl, avatarEl || nameTextEl, record.name);
 }

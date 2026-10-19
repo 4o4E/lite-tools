@@ -47,6 +47,15 @@
   }
 }
 
+.user-name > .lt-time-in-name {
+  margin-left: 6px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: normal;
+  opacity: 0.65;
+  white-space: nowrap;
+}
+
 // 插槽样式
 .lt-slot {
   user-select: none;

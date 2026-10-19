@@ -1,166 +1,247 @@
-import { onComponentMount } from "@/renderer/modules/vueComponentTracker";
-import { checkChatType } from "@/common/checkChatType";
+import { onComponentMount, onComponentUnmount } from "@/renderer/modules/vueComponentTracker";
+import { createComparator } from "@/common/createComparator";
 import { createLogger } from "@/renderer/utils/createLogger";
-import { waitForInstance } from "@/renderer/utils/domWaitFor";
 import { configStore } from "@/renderer/modules/configStore";
-import { waitForElement } from "@/renderer/utils/domWaitFor";
 
 import { initRecallMessageListener, insertRecallTag } from "./messageRecall";
-import { mergeMessage } from "./mergeMessage";
 import { setupRevealMask, revealMask } from "./revealMask";
 import { insertSlot } from "./messageSlot";
 import { insertTime } from "./insertTime";
-import { insertRepeatBtn } from "./insertRepeatBtn";
+import {
+  canRepeatMessage,
+  insertRepeatBtn,
+  isHoverRepeatEnabled,
+  removeEmptySlots,
+  removeRepeatBtn,
+} from "./insertRepeatBtn";
+import { setupRepeatMenu } from "./repeatMenu";
 import { bindUserNameAt } from "./nameAt";
 import { chatObserverManager } from "./chatObserverManager";
 
 import type { MessageElement, SlotElement } from "./type";
 
+interface MessageComponent {
+  vnode: { el: MessageElement };
+  props: { msgRecord: Message };
+}
+
 const log = createLogger("handleMessages");
+const processedInstances = new WeakMap<MessageComponent, string>();
+const messageComponents = new WeakMap<MessageElement, MessageComponent>();
+const pendingSlots = new WeakSet<MessageElement>();
+const positioningSlots = new WeakMap<MessageElement, SlotElement>();
 
-const processedInstances = new WeakSet<any>();
+function isMessageComponent(value: unknown): value is MessageComponent {
+  if (!value || typeof value !== "object" || !("vnode" in value) || !("props" in value)) return false;
+  const vnode = value.vnode;
+  const props = value.props;
+  if (
+    !vnode ||
+    typeof vnode !== "object" ||
+    !("el" in vnode) ||
+    !(vnode.el instanceof HTMLElement) ||
+    !vnode.el.classList.contains("message") ||
+    !props ||
+    typeof props !== "object" ||
+    !("msgRecord" in props)
+  ) {
+    return false;
+  }
+  const record = props.msgRecord;
+  return (
+    !!record &&
+    typeof record === "object" &&
+    "msgId" in record &&
+    typeof record.msgId === "string" &&
+    "chatType" in record &&
+    typeof record.chatType === "number" &&
+    [1, 2, 100].includes(record.chatType) &&
+    "peerUid" in record &&
+    typeof record.peerUid === "string" &&
+    "elements" in record &&
+    Array.isArray(record.elements)
+  );
+}
 
-let aioData: any;
+function getMessageComponent(messageEl: MessageElement) {
+  const component = messageEl.__VUE__?.find(
+    (candidate: unknown) => isMessageComponent(candidate) && candidate.vnode.el === messageEl,
+  );
+  const tracked = isMessageComponent(component) ? component : messageComponents.get(messageEl);
+  if (
+    tracked &&
+    !("isUnmounted" in tracked && tracked.isUnmounted) &&
+    tracked.vnode.el === messageEl &&
+    tracked.props.msgRecord.msgId === messageEl.closest(".ml-item")?.id
+  ) {
+    return tracked;
+  }
+}
+
+function getMessageRecord(messageEl: MessageElement) {
+  return getMessageComponent(messageEl)?.props.msgRecord;
+}
 
 async function setupHandleMessages() {
   await configStore.ready;
   log("注册事件");
+  const clearRepeatMenu = setupRepeatMenu(getMessageRecord);
+  const messageConfigChanged = createComparator(configStore.value.message);
 
-  // 高版本自带+1按钮，如果启用了复读功能则隐藏自带的按钮
-  if (configStore.value.message.repeatMessage.enabled) {
-    document.body.classList.add("repeat-message");
-  } else {
-    document.body.classList.remove("repeat-message");
-  }
+  // 开启任一复读模式时，都隐藏 QQ 自带的 +1，避免出现第二个入口。
+  document.body.classList.toggle("repeat-message", configStore.value.message.repeatMessage.enabled);
   configStore.onChange((config) => {
-    if (config.message.repeatMessage.enabled) {
-      document.body.classList.add("repeat-message");
-    } else {
-      document.body.classList.remove("repeat-message");
-    }
+    document.body.classList.toggle("repeat-message", config.message.repeatMessage.enabled);
+    if (!messageConfigChanged(config.message)) return;
+    clearRepeatMenu();
+    document.querySelectorAll<MessageElement>(".message").forEach((messageEl) => {
+      pendingSlots.delete(messageEl);
+      removeRepeatBtn(messageEl);
+      messageEl.querySelectorAll(".lt-time,.lt-recall,.lt-slot").forEach((element) => element.remove());
+      removeEmptySlots(messageEl);
+      const component = getMessageComponent(messageEl);
+      bindUserNameAt(messageEl, component?.props.msgRecord);
+      if (component) enhanceMessage(component);
+    });
   });
 
+  chatObserverManager.addTask({
+    name: "HandleMessageComponents",
+    selector: ".message",
+    handler: (elements) => elements.forEach(discoverMessageElements),
+  });
   chatObserverManager.start();
-
-  // observerElement();
   setupRevealMask();
   onComponentMount(handleMessages);
+  onComponentUnmount((component: unknown) => {
+    if (!isMessageComponent(component)) return;
+    const messageEl = component.vnode.el;
+    if (messageComponents.get(messageEl) === component) {
+      messageComponents.delete(messageEl);
+      pendingSlots.delete(messageEl);
+    }
+  });
   initRecallMessageListener(enhanceMessage);
-  const { instance, value: msgList } = await waitForInstance(
-    ".container-content .container .aio .group-chat",
-    "proxy.curMsgListData",
+
+  // 当前 QQ 的消息可能先挂 DOM 再暴露 __VUE__，同时补发现已挂载消息和延迟出现的昵称。
+  let discoveryTimer: number | undefined;
+  const scheduleDiscovery = () => {
+    if (discoveryTimer !== undefined) return;
+    discoveryTimer = window.setTimeout(() => {
+      discoveryTimer = undefined;
+      discoverMessageElements(document);
+    }, 50);
+  };
+  new MutationObserver(scheduleDiscovery).observe(document.body, { childList: true, subtree: true });
+  discoverMessageElements(document);
+  setTimeout(scheduleDiscovery, 100);
+}
+
+function discoverMessageElements(root: ParentNode) {
+  if (root instanceof HTMLElement && root.matches(".message")) {
+    const component = getMessageComponent(root as MessageElement);
+    if (component) handleMessages(component);
+  }
+  root.querySelectorAll<MessageElement>(".message").forEach((messageEl) => {
+    const component = getMessageComponent(messageEl);
+    if (component) handleMessages(component);
+  });
+}
+
+function enabledSlot(msgRecord: Message) {
+  const config = configStore.value.message;
+  return (
+    (config.showSendTime.enabled && !config.showSendTime.toSenderName) ||
+    config.preventRecall.enabled ||
+    (isHoverRepeatEnabled() && canRepeatMessage(msgRecord))
   );
-  aioData = instance.proxy;
-
-  for (const item of msgList) {
-    const el = document.getElementById(item.msgId)?.firstElementChild;
-    if (el && el?.__VUE__?.[0]) {
-      handleMessages(el.__VUE__[0]);
-    }
-  }
 }
 
-function enabledSlot() {
-  return configStore.value.message.showSendTime.enabled || configStore.value.message.preventRecall.enabled;
-}
-
-function handleMessages(component: any) {
-  if (component?.vnode?.el && component?.props?.msgRecord && !processedInstances.has(component)) {
-    if (!checkChatType(component.props.msgRecord) || !component.vnode.el?.classList?.contains?.("message")) return;
-    processedInstances.add(component);
-    try {
-      bindUserNameAt(component.vnode.el, component.props.msgRecord);
-    } catch (error) {
-      log("昵称 @ 绑定失败", error);
-    }
-    const isNewVersion = !!component.vnode.el.querySelector(".message-native");
-    // 消息合并-有卡顿
-    if (0) {
-      mergeMessage(aioData, component);
-    }
-    // 插入插槽
-    if (enabledSlot()) {
-      if (isNewVersion) {
-        enhanceMessageSync(component);
-      } else {
-        enhanceMessage(component);
-      }
-    }
-    // 图片遮罩
-    if (configStore.value.message.revealMask.enabled) {
-      revealMask(component, isNewVersion);
-    }
-  }
-}
-
-const awaitInsertSlot = new Map();
-
-async function enhanceMessageSync(component: any) {
-  const messageEl = component.vnode.el as MessageElement;
+function handleMessages(component: unknown) {
+  if (!isMessageComponent(component)) return;
+  const messageEl = component.vnode.el;
   const msgRecord = component.props.msgRecord;
-  let slot = insertSlot(messageEl, msgRecord);
+  if (!messageEl.isConnected || messageEl.closest(".ml-item")?.id !== msgRecord.msgId) return;
+  messageComponents.set(messageEl, component);
+  try {
+    bindUserNameAt(messageEl, msgRecord);
+  } catch (error) {
+    log("昵称 @ 绑定失败", error);
+  }
 
+  if (processedInstances.get(component) === msgRecord.msgId) {
+    const config = configStore.value.message;
+    if (
+      pendingSlots.has(messageEl) ||
+      (isHoverRepeatEnabled() && canRepeatMessage(msgRecord) && !messageEl.querySelector(".lt-repeat")) ||
+      (config.showSendTime.enabled && !config.showSendTime.toSenderName && !messageEl.querySelector(".lt-slot .lt-time")) ||
+      (config.preventRecall.enabled && msgRecord.lt_recall && !messageEl.querySelector(".lt-recall"))
+    ) {
+      enhanceMessage(component);
+    } else if (
+      configStore.value.message.showSendTime.enabled &&
+      configStore.value.message.showSendTime.toSenderName &&
+      messageEl.querySelector(".user-name") &&
+      !messageEl.querySelector(".user-name > .lt-time-in-name")
+    ) {
+      insertTime(messageEl, msgRecord);
+    }
+    return;
+  }
+  processedInstances.set(component, msgRecord.msgId);
+  // 复用组件切换到另一条消息时，不保留原消息的按钮、时间或撤回标记。
+  removeRepeatBtn(messageEl);
+  messageEl.querySelectorAll(".lt-time,.lt-recall,.lt-slot").forEach((element) => element.remove());
+  removeEmptySlots(messageEl);
+  enhanceMessage(component);
+  if (configStore.value.message.revealMask.enabled) {
+    revealMask(component, !!messageEl.querySelector(".message-native"));
+  }
+}
+
+function enhanceMessage(component: unknown) {
+  if (!isMessageComponent(component)) return;
+  const messageEl = component.vnode.el;
+  const msgRecord = component.props.msgRecord;
+  if (!messageEl.isConnected || getMessageRecord(messageEl)?.msgId !== msgRecord.msgId) return;
+  const config = configStore.value.message;
+  if (config.showSendTime.enabled && config.showSendTime.toSenderName) {
+    insertTime(messageEl, msgRecord);
+  }
+  if (!enabledSlot(msgRecord)) {
+    pendingSlots.delete(messageEl);
+    return;
+  }
+
+  const slot = insertSlot(messageEl, msgRecord);
   if (slot === false) {
-    const { promise, resolve } = Promise.withResolvers<SlotElement>();
-    awaitInsertSlot.set(msgRecord.msgId, { resolve, messageEl, msgRecord });
-    slot = await promise;
-  }
-
-  if (!slot) {
+    pendingSlots.add(messageEl);
     return;
   }
-  if (configStore.value.message.showSendTime.enabled) {
-    insertTime(slot, msgRecord);
+  pendingSlots.delete(messageEl);
+  if (!slot) return;
+  if (config.showSendTime.enabled && !config.showSendTime.toSenderName) {
+    insertTime(messageEl, msgRecord, slot);
   }
-  if (configStore.value.message.preventRecall.enabled) {
+  if (config.preventRecall.enabled) {
     insertRecallTag(slot, msgRecord);
   }
-
-  Promise.resolve(slot.updatePosition?.()).then(() => {
-    if (configStore.value.message.repeatMessage.enabled) {
-      insertRepeatBtn(slot, msgRecord, messageEl);
-    }
-  });
-}
-
-function enhanceMessage(component: any) {
-  const messageEl = component.vnode.el as MessageElement;
-  const msgRecord = component.props.msgRecord;
-  let slot = insertSlot(messageEl, msgRecord);
-  if (!slot) {
-    return;
-  }
-  if (configStore.value.message.showSendTime.enabled) {
-    insertTime(slot, msgRecord);
-    log("插入时间");
-  }
-  if (configStore.value.message.preventRecall.enabled) {
-    insertRecallTag(slot, msgRecord);
-  }
-
-  Promise.resolve(slot.updatePosition?.()).then(() => {
-    if (configStore.value.message.repeatMessage.enabled) {
-      insertRepeatBtn(slot, msgRecord, messageEl);
-    }
-  });
-}
-
-// 处理异步插入插槽
-chatObserverManager.addTask({
-  name: "InsertSlot",
-  selector: ".message",
-  handler: (elements) => {
-    elements.forEach((mlItem) => {
-      const inserted = awaitInsertSlot.get(mlItem.id);
-      if (inserted) {
-        const slot = insertSlot(inserted.messageEl, inserted.msgRecord);
-        if (slot) {
-          awaitInsertSlot.delete(inserted.msgRecord.msgId);
-          inserted.resolve(slot);
-        }
+  if (positioningSlots.get(messageEl) === slot) return;
+  positioningSlots.set(messageEl, slot);
+  Promise.resolve(slot.updatePosition?.())
+    .then(() => {
+      if (
+        slot.isConnected &&
+        isHoverRepeatEnabled() &&
+        getMessageRecord(messageEl)?.msgId === msgRecord.msgId
+      ) {
+        insertRepeatBtn(slot, msgRecord, messageEl, getMessageRecord);
       }
+    })
+    .catch((error: unknown) => log("消息插槽定位失败", error))
+    .finally(() => {
+      if (positioningSlots.get(messageEl) === slot) positioningSlots.delete(messageEl);
     });
-  },
-});
+}
 
 export { setupHandleMessages };

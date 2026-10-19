@@ -31,6 +31,7 @@
       <li class="vertical-list-item">
         <div>
           <h2>阻止消息窗口拖拽操作</h2>
+          <span class="secondary-text">仅阻止左键拖拽；中键和前后侧键保留 QQ 原生行为</span>
         </div>
         <div class="q-switch" data-config="interface.preventSelect">
           <span class="q-switch__handle"></span>
@@ -143,6 +144,16 @@
       <hr class="horizontal-dividing-line" />
       <li class="vertical-list-item">
         <div>
+          <h2>点击群昵称 @</h2>
+          <span class="secondary-text">点击群聊消息中的他人昵称，将 @ 插入输入框，不自动发送；开关立即生效</span>
+        </div>
+        <div class="q-switch" data-config="message.clickNameAt">
+          <span class="q-switch__handle"></span>
+        </div>
+      </li>
+      <hr class="horizontal-dividing-line" />
+      <li class="vertical-list-item">
+        <div>
           <h2>替换小程序卡片</h2>
           <span class="secondary-text">替换所有支持浏览器打开的小程序分享卡片为网页卡片 - 重载消息生效</span>
         </div>
@@ -164,7 +175,7 @@
       <li class="vertical-list-item">
         <div>
           <h2>消息+1</h2>
-          <span class="secondary-text">人类的本质是______ - 重载消息生效</span>
+          <span class="secondary-text">人类的本质是______</span>
         </div>
         <div class="q-switch" data-config="message.repeatMessage.enabled">
           <span class="q-switch__handle"></span>
@@ -172,8 +183,24 @@
       </li>
       <li class="vertical-list-item sub-item">
         <div>
+          <h2>+1 显示位置</h2>
+          <span class="secondary-text">消息悬浮与消息右键二选一，切换后立即生效；头像和昵称菜单不显示</span>
+        </div>
+        <div class="setting-select" data-config="message.repeatMessage.position">
+          <div class="setting-view text_color show-icon" data-value="未初始化"></div>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M21 8L12 17L3 8" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
+          </svg>
+          <div class="setting-option">
+            <div class="setting-item" data-value="hover">消息悬浮</div>
+            <div class="setting-item" data-value="contextMenu">消息右键</div>
+          </div>
+        </div>
+      </li>
+      <li class="vertical-list-item sub-item">
+        <div>
           <h2>双击执行</h2>
-          <span class="secondary-text">避免误触</span>
+          <span class="secondary-text">仅用于消息悬浮按钮，避免误触</span>
         </div>
         <div class="q-switch" data-config="message.repeatMessage.doubleClick">
           <span class="q-switch__handle"></span>
@@ -186,6 +213,15 @@
           <span class="secondary-text">显示每一条消息的发送时间 - 重载消息生效</span>
         </div>
         <div class="q-switch" data-config="message.showSendTime.enabled">
+          <span class="q-switch__handle"></span>
+        </div>
+      </li>
+      <li class="vertical-list-item sub-item">
+        <div>
+          <h2>插入到用户名后方</h2>
+          <span class="secondary-text">时间不占用消息气泡插槽 - 重载消息生效</span>
+        </div>
+        <div class="q-switch" data-config="message.showSendTime.toSenderName">
           <span class="q-switch__handle"></span>
         </div>
       </li>
