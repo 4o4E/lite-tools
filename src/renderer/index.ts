@@ -4,6 +4,7 @@ import { styleManager } from "@/renderer/modules/styleManager";
 import { toastManager } from "@/renderer/modules/toastManager";
 
 // pages
+import { setupHideMoreGroups } from "@/renderer/modules/hideMoreGroups";
 import { setupMainPage } from "@/renderer/pages/main";
 import { setupChatPage } from "@/renderer/pages/chat";
 import { setupImageViewer } from "@/renderer/pages/imageViewer";
@@ -16,6 +17,9 @@ export async function main() {
   styleManager.inject("global");
   const hash = await getHash();
   log("hash Update", hash);
+  if (hash.startsWith("#/main/")) {
+    await setupHideMoreGroups();
+  }
   switch (hash) {
     case "#/main/message":
       await toastManager.setup();

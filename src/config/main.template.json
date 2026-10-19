@@ -32,6 +32,7 @@
     "hiddenLockBtn": false,
     "hiddenLogoutBtn": false,
     "hiddenUpdateBtnAndNotice": false,
+    "hiddenMoreGroups": false,
     "removeVipColor": false,
     "wallpaper": {
       "enabled": false,

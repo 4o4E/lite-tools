@@ -2,6 +2,15 @@
   display: none !important;
 }
 
+.sys-notify__scroll-body.lt-hide-more-groups > :not(.notify-section) {
+  display: none !important;
+}
+
+// 推荐群列表由独立的虚拟列表容器动态渲染，位于滚动正文之外。
+.sys-notify.lt-hide-more-groups .wrap:has(.discover-list-item) {
+  display: none !important;
+}
+
 // 全局变量
 :root {
   --lt-slot-embed-image-bg: rgba(0, 0, 0, 0.3);
