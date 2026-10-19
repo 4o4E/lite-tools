@@ -16,6 +16,8 @@ import {
 } from "./insertRepeatBtn";
 import { setupRepeatMenu } from "./repeatMenu";
 import { bindUserNameAt } from "./nameAt";
+import { setupNudgeDoubleClick } from "./nudgeDoubleClick";
+import { setupNudgeMenu } from "./nudgeMenu";
 import { chatObserverManager } from "./chatObserverManager";
 
 import type { MessageElement, SlotElement } from "./type";
@@ -86,6 +88,8 @@ async function setupHandleMessages() {
   await configStore.ready;
   log("注册事件");
   const clearRepeatMenu = setupRepeatMenu(getMessageRecord);
+  setupNudgeDoubleClick(getMessageRecord);
+  setupNudgeMenu(getMessageRecord);
   const messageConfigChanged = createComparator(configStore.value.message);
 
   // 开启任一复读模式时，都隐藏 QQ 自带的 +1，避免出现第二个入口。

@@ -54,6 +54,7 @@
     "largPicFileToPicMsg": false,
     "removeReplyAt": false,
     "clickNameAt": true,
+    "nativeNudge": false,
     "repeatMessage": {
       "enabled": false,
       "doubleClick": false,
