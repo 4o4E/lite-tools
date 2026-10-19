@@ -17,7 +17,7 @@ export async function main() {
   styleManager.inject("global");
   const hash = await getHash();
   log("hash Update", hash);
-  if (hash.startsWith("#/main/")) {
+  if (typeof hash === "string" && hash.startsWith("#/main/")) {
     await setupHideMoreGroups();
   }
   switch (hash) {
