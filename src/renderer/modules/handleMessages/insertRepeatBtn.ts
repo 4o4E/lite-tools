@@ -1,4 +1,4 @@
-import { forwardMessage } from "@/renderer/utils/nativeCall";
+import { repeatMessageContent } from "@/renderer/utils/nativeCall";
 import { configStore } from "@/renderer/modules/configStore";
 import { aioStore } from "@/renderer/modules/aioStore";
 
@@ -7,7 +7,12 @@ import { createSlot } from "./messageSlot";
 
 import type { MessageElement, SlotElement } from "./type";
 
-const repeatElementType = [ElementType.textElement, ElementType.picElement, ElementType.marketFaceElement];
+const repeatElementType = [
+  ElementType.textElement,
+  ElementType.picElement,
+  ElementType.marketFaceElement,
+  ElementType.replyElement,
+];
 
 interface RepeatContext {
   messageEl: MessageElement;
@@ -65,9 +70,14 @@ function isRepeatContextCurrent(context: RepeatContext, msgRecord: Message | und
   );
 }
 
-function repeatMessage(context: RepeatContext, msgRecord: Message | undefined) {
-  if (isRepeatContextCurrent(context, msgRecord)) {
-    forwardMessage(context.peer, context.peer, [context.msgId]);
+function repeatMessage(context: RepeatContext, getMessageRecord: GetMessageRecord) {
+  const msgRecord = getMessageRecord(context.messageEl);
+  if (msgRecord && isRepeatContextCurrent(context, msgRecord)) {
+    void repeatMessageContent(context.peer, msgRecord, () =>
+      isRepeatContextCurrent(context, getMessageRecord(context.messageEl)),
+    ).catch(
+      (error: unknown) => console.error("[Lite Tools] 复读失败", error),
+    );
   }
 }
 
@@ -110,7 +120,7 @@ function insertRepeatBtn(
       }
       previousClick = 0;
     }
-    repeatMessage(context, getMessageRecord(messageEl));
+    repeatMessage(context, getMessageRecord);
   });
   if (slot.classList.contains("outside")) {
     slot.querySelector(".lt-float")?.appendChild(btn);

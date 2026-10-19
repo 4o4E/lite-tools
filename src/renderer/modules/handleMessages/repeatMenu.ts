@@ -111,7 +111,7 @@ function setupRepeatMenu(getMessageRecord: GetMessageRecord) {
       ) {
         return;
       }
-      repeatMessage(captured.context, getMessageRecord(captured.context.messageEl));
+      repeatMessage(captured.context, getMessageRecord);
       clearRepeatMenu();
       menu.remove();
     });
