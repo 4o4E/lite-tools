@@ -25,6 +25,7 @@
   "interface": {
     "goBackMainList": false,
     "imageViewerOptimization": false,
+    "imageViewerZoom": false,
     "deleteBubbleSkin": false,
     "preventSelect": false,
     "hiddenWeatherBtn": false,

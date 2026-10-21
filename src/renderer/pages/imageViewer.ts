@@ -1,11 +1,13 @@
 import { waitForInstance } from "@/renderer/utils/domWaitFor";
 import { configStore } from "@/renderer/modules/configStore";
+import { setupImageViewerZoom } from "@/renderer/modules/imageViewerZoom";
 
 /**
  * 媒体预览增强
  */
 async function setupImageViewer() {
   await configStore.ready;
+  setupImageViewerZoom();
   // 判断图片是否超过窗口大小
   const { instance: imageInstance } = await waitForInstance(
     ".main-area.main-area--image.vue-component",
