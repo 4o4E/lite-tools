@@ -11,6 +11,7 @@ const repeatElementType = [
   ElementType.textElement,
   ElementType.picElement,
   ElementType.marketFaceElement,
+  ElementType.faceElement,
   ElementType.replyElement,
 ];
 
