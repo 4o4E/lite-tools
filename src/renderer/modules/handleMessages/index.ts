@@ -15,6 +15,7 @@ import {
   removeRepeatBtn,
 } from "./insertRepeatBtn";
 import { setupRepeatMenu } from "./repeatMenu";
+import { setupReactionEmojiExtension } from "./reactionEmojiExtension";
 import { bindUserNameAt } from "./nameAt";
 import { setupNudgeDoubleClick } from "./nudgeDoubleClick";
 import { setupNudgeMenu } from "./nudgeMenu";
@@ -88,6 +89,7 @@ async function setupHandleMessages() {
   await configStore.ready;
   log("注册事件");
   const clearRepeatMenu = setupRepeatMenu(getMessageRecord);
+  setupReactionEmojiExtension();
   setupNudgeDoubleClick(getMessageRecord);
   setupNudgeMenu(getMessageRecord);
   const messageConfigChanged = createComparator(configStore.value.message);

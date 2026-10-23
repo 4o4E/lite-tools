@@ -1,3 +1,17 @@
+# 4.0.0-alpha.qqnt53644.20261022.1
+
+- `消息+1` 现在接受只有 QQ 表情的消息：复读判断加入 `faceElement`，纯表情消息与文本、图片、商城表情消息共用同一套入口和发送逻辑。
+- 新增 `消息相关 → Noto 表情` 开关，默认开启；关闭后不注入字体、不补面板项、不替换 emoji，重启生效。
+- 原 QQ `贴表情` 面板的 `emoji 表情` 分区由 `ctx.panelEmojis`（146 项）渲染，完整协议列表在 `props.emojis`（165 项）。插件把缺失的 19 项补进 DOM，点击调用原生 `onClickSticker(emoji, "3")`，不新增菜单、不创建独立面板，也不改面板自身数据。
+- `emoji 表情` 分区、`最近表情` 分区、右键快捷界面和消息回应统一替换为 Google Noto 图片：协议表内的 emoji 用 `notoEmoji.json` 内联 data URL，表外的用 Noto CDN；系统表情图片按 `EmojiSystermResource` 的数字 ID 跳过。
+- 文本 emoji 和回应项按原文本实际尺寸生成图片，回应项固定 18×18，保留原点击和计数逻辑。
+- 输入框和已发送消息中的 emoji 文本通过覆盖 QQ 的 `"Color Emoji"` 字体族使用 Noto Color Emoji，字体来自 jsDelivr CDN，只匹配 emoji 的 unicode-range，不影响普通文字。
+- 只补协议表内允许的 emoji；不加入隐藏的多段超级表情、商城表情或协议表外的 emoji。协议表中的猪是 `🐷 /猪`（qcid 128055）；`🐖` 不在协议表内，加入菜单后服务端不会生成回应，因此不再补充。
+
+验证：`build:alpha` 通过；新增文件的定向类型检查无错误；全量 `check:types` 仍只报告未改动的 `wallpaperManager.ts:166,172` 两处既有错误。用户在真实 QQ 中确认贴表情面板、快捷界面、消息回应和尺寸已按要求变化。Noto Color Emoji 字体通过 jsDelivr CDN 加载成功；用同一字体文件覆盖 `"Color Emoji"` 实测 `🐷` 文本宽度由 45.10px 变为 39.93px，字体表状态 loaded，说明输入框和消息文本会使用 Noto。协议表外的 emoji 使用 Noto CDN 回退，网络不可用时保持原样式。
+
+---
+
 # 4.0.0-alpha.qqnt53644.20261021.1
 
 - 新增 `界面调整 → 图片缩放增强`，默认关闭、即时切换，独立于现有的图片拖动/点击关闭优化。

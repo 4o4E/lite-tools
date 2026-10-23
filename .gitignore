@@ -4,4 +4,5 @@ build
 .vscode
 .VSCodeCounter
 .pnpm-store
+.workspace
 *.tsbuildinfo
