@@ -1,0 +1,23 @@
+.lite-tools-native-sticker-preview {
+  position: fixed;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 154px;
+  height: 154px;
+  padding: 12px;
+  border: 1px solid rgba(127, 127, 127, 0.18);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--background-color-cb) 94%, transparent);
+  box-shadow: rgba(0, 0, 0, 0.2) 0 12px 34px;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.96);
+  transition: opacity 120ms, transform 120ms;
+}
+.lite-tools-native-sticker-preview.show { opacity: 1; transform: scale(1); }
+.lite-tools-native-sticker-preview img { max-width: 128px; max-height: 128px; object-fit: contain; user-select: none; -webkit-user-drag: none; }
+.lite-tools-native-sticker-panel .lite-tools-native-sticker-pack-preview-item { min-width: 38px !important; min-height: 38px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; }
+.lite-tools-native-sticker-panel .tabs-container-item-img.lite-tools-native-sticker-pack-preview-box { width: 32px !important; height: 32px !important; display: flex !important; align-items: center !important; justify-content: center !important; }
+.lite-tools-native-sticker-panel img.lite-tools-native-sticker-pack-preview { width: 32px !important; height: 32px !important; max-width: 32px !important; max-height: 32px !important; object-fit: contain !important; }

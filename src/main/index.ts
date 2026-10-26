@@ -10,6 +10,7 @@ import { localStickers } from "@/main/modules/localStickers";
 import { wallpaperService } from "@/main/modules/wallpaper";
 import { setupDevWindow } from "@/main/modules/devWindow";
 import { proxyManager } from "@/main/modules/proxyManager";
+import { setupNativeFavoriteStickerCache } from "@/main/modules/nativeFavoriteStickerCache";
 import type { BrowserWindow } from "electron";
 
 const log = createLogger("lt_main");
@@ -26,6 +27,7 @@ const unSubscribe = IpcInterceptor.onIpcSendEvents("nodeIKernelSessionListener/o
 function setupMain(uid: string) {
   try {
     configManager.setup(uid);
+    setupNativeFavoriteStickerCache(uid);
     setupMessageRecordInterceptor();
     setupSendMessageInterceptor();
     setupIpcMain();

@@ -38,9 +38,9 @@ class ConfigStore {
     this.resolveReady();
   }
 
-  setConfig(update: Config) {
+  setConfig(update: Config, source: "user" | "automatic") {
     Object.assign(this.config, update);
-    lite_tools.updateConfig(this.config);
+    lite_tools.updateConfig(this.config, source);
   }
 
   onChange(listener: ConfigListener) {

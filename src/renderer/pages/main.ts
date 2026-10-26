@@ -1,5 +1,5 @@
 import { aioStore } from "@/renderer/modules/aioStore";
-import { setupPreventMutipleSelect } from "@/renderer/modules/preventMultipleSelect";
+import { setupPreventMultipleSelect } from "@/renderer/modules/preventMultipleSelect";
 import { createLogger } from "@/renderer/utils/createLogger";
 import { configStore } from "@/renderer/modules/configStore";
 import { createComparator } from "@/common/createComparator";
@@ -11,6 +11,8 @@ import { waitForInstance } from "@/renderer/utils/domWaitFor";
 import { wallpaperManager } from "@/renderer/modules/wallpaperManager";
 import { setupLocalStickers } from "@/renderer/modules/localStickers";
 import { editorManager } from "@/renderer/modules/editorManager";
+import { setupMenuHighlight } from "@/renderer/modules/menuHighlight";
+import { initNativeStickerEnhancer } from "@/renderer/modules/nativeStickerEnhancer";
 
 const log = createLogger("main");
 
@@ -19,7 +21,9 @@ async function setupMainPage() {
   await configStore.ready;
   await aioStore.ready;
   const topSideBarhasChanged = createComparator(configStore.value.sideBar.top);
-  setupPreventMutipleSelect("chat-msg-area");
+  setupPreventMultipleSelect("chat-msg-area");
+  setupMenuHighlight();
+  initNativeStickerEnhancer();
   updateTopSideBar(configStore.value);
   updateBottomSideBar(configStore.value);
   updateInterface(configStore.value);

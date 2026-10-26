@@ -1,5 +1,5 @@
 import { aioStore } from "@/renderer/modules/aioStore";
-import { setupPreventMutipleSelect } from "@/renderer/modules/preventMultipleSelect";
+import { setupPreventMultipleSelect } from "@/renderer/modules/preventMultipleSelect";
 import { createLogger } from "@/renderer/utils/createLogger";
 import { configStore } from "@/renderer/modules/configStore";
 import { updateTopFuncBar, updateChatFuncBar } from "@/renderer/modules/funcBarManager";
@@ -8,6 +8,8 @@ import { waitForInstance } from "@/renderer/utils/domWaitFor";
 import { wallpaperManager } from "@/renderer/modules/wallpaperManager";
 import { setupLocalStickers } from "@/renderer/modules/localStickers";
 import { editorManager } from "@/renderer/modules/editorManager";
+import { setupMenuHighlight } from "@/renderer/modules/menuHighlight";
+import { initNativeStickerEnhancer } from "@/renderer/modules/nativeStickerEnhancer";
 
 const log = createLogger("chat");
 
@@ -17,7 +19,9 @@ async function setupChatPage() {
   log("获取到配置", configStore.value);
   await aioStore.ready;
   log("initialized");
-  setupPreventMutipleSelect("chat-msg-area");
+  setupPreventMultipleSelect("chat-msg-area");
+  setupMenuHighlight();
+  initNativeStickerEnhancer();
   setupHandleMessages();
   setupGoBackMainList();
   setupLocalStickers();

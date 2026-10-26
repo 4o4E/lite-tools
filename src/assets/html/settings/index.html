@@ -40,8 +40,8 @@
       <hr class="horizontal-dividing-line" />
       <li class="vertical-list-item">
         <div>
-          <h2>阻止消息窗口拖拽操作</h2>
-          <span class="secondary-text">仅阻止左键拖拽；中键和前后侧键保留 QQ 原生行为</span>
+          <h2>限制消息选择范围</h2>
+          <span class="secondary-text">仅阻止左键拖拽；在消息文字上拖选时限制在同一条消息内，复制不会带上多条消息；中键和前后侧键保留 QQ 原生行为</span>
         </div>
         <div class="q-switch" data-config="interface.preventSelect">
           <span class="q-switch__handle"></span>
@@ -122,6 +122,26 @@
       </li>
     </ul>
   </div>
+  <div class="wrap">
+    <div class="vertical-list-item title">
+      <h2>右键菜单颜色</h2>
+      <svg class="icon is-fold" viewBox="0 0 24 24" fill="none"><path d="M21 8L12 17L3 8" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path></svg>
+    </div>
+    <ul class="hidden">
+      <li class="vertical-list-item">
+        <div><h2>高亮原生菜单选项</h2><span class="secondary-text">每项分别设置亮色、暗色主题颜色；关闭立即恢复 QQ 默认颜色</span></div>
+        <div class="q-switch" data-config="contextMenu.highlight.enabled"><span class="q-switch__handle"></span></div>
+      </li>
+      <li class="vertical-list-item"><h2>复制</h2><div class="custom-text-color"><input type="color" title="复制：亮色" data-config="contextMenu.highlight.light.copy" /><input type="color" title="复制：暗色" data-config="contextMenu.highlight.dark.copy" /></div></li>
+      <li class="vertical-list-item"><h2>转发</h2><div class="custom-text-color"><input type="color" title="转发：亮色" data-config="contextMenu.highlight.light.forward" /><input type="color" title="转发：暗色" data-config="contextMenu.highlight.dark.forward" /></div></li>
+      <li class="vertical-list-item"><h2>收藏</h2><div class="custom-text-color"><input type="color" title="收藏：亮色" data-config="contextMenu.highlight.light.collect" /><input type="color" title="收藏：暗色" data-config="contextMenu.highlight.dark.collect" /></div></li>
+      <li class="vertical-list-item"><h2>多选</h2><div class="custom-text-color"><input type="color" title="多选：亮色" data-config="contextMenu.highlight.light.multiple" /><input type="color" title="多选：暗色" data-config="contextMenu.highlight.dark.multiple" /></div></li>
+      <li class="vertical-list-item"><h2>引用 / 回复</h2><div class="custom-text-color"><input type="color" title="引用：亮色" data-config="contextMenu.highlight.light.quote" /><input type="color" title="引用：暗色" data-config="contextMenu.highlight.dark.quote" /></div></li>
+      <li class="vertical-list-item"><h2>设为精华</h2><div class="custom-text-color"><input type="color" title="精华：亮色" data-config="contextMenu.highlight.light.essence" /><input type="color" title="精华：暗色" data-config="contextMenu.highlight.dark.essence" /></div></li>
+      <li class="vertical-list-item"><h2>撤回</h2><div class="custom-text-color"><input type="color" title="撤回：亮色" data-config="contextMenu.highlight.light.revoke" /><input type="color" title="撤回：暗色" data-config="contextMenu.highlight.dark.revoke" /></div></li>
+      <li class="vertical-list-item"><h2>删除</h2><div class="custom-text-color"><input type="color" title="删除：亮色" data-config="contextMenu.highlight.light.delete" /><input type="color" title="删除：暗色" data-config="contextMenu.highlight.dark.delete" /></div></li>
+    </ul>
+  </div>
   <!-- 消息相关 -->
   <div class="wrap chatMessage">
     <div class="vertical-list-item title">
@@ -180,6 +200,38 @@
         <div class="q-switch" data-config="message.nativeNudge">
           <span class="q-switch__handle"></span>
         </div>
+      </li>
+      <hr class="horizontal-dividing-line" />
+      <li class="vertical-list-item">
+        <div>
+          <h2>复制到聊天框</h2>
+          <span class="secondary-text">在消息右键菜单中插入消息纯文本到当前输入位置，保留草稿，不发送消息</span>
+        </div>
+        <div class="q-switch" data-config="message.copyToChatInput.enabled"><span class="q-switch__handle"></span></div>
+      </li>
+      <hr class="horizontal-dividing-line" />
+      <li class="vertical-list-item">
+        <div>
+          <h2>原生收藏表情缓存</h2>
+          <span class="secondary-text">缓存原生收藏表情列表并合并分页加载；首次使用需重启 QQ</span>
+        </div>
+        <div class="q-switch" data-config="message.nativeFavoriteStickers.cacheEnabled"><span class="q-switch__handle"></span></div>
+      </li>
+      <li class="vertical-list-item sub-item">
+        <div><h2>收藏表情合并页数</h2><span class="secondary-text">1–50 页；1 为不合并</span></div>
+        <input type="number" min="1" max="50" data-config="message.nativeFavoriteStickers.mergePages" />
+      </li>
+      <li class="vertical-list-item sub-item">
+        <div><h2>刷新收藏表情缓存</h2><span class="secondary-text">收藏列表有增删或排序变化时清空缓存，再重新打开表情面板加载；不删除 QQ 收藏或图片文件</span></div>
+        <button class="q-button clear-native-favorite-cache">清空缓存</button>
+      </li>
+      <li class="vertical-list-item">
+        <div><h2>收藏表情动图缩略图</h2><span class="secondary-text">使用已下载的原始动图；原图不可用时保留原生缩略图</span></div>
+        <div class="q-switch" data-config="message.nativeFavoriteStickers.playAnimation"><span class="q-switch__handle"></span></div>
+      </li>
+      <li class="vertical-list-item">
+        <div><h2>放大原生表情包预览</h2><span class="secondary-text">仅影响表情面板，不改变消息和贴表情回应面板</span></div>
+        <div class="q-switch" data-config="message.nativeFavoriteStickers.enlargePreview"><span class="q-switch__handle"></span></div>
       </li>
       <hr class="horizontal-dividing-line" />
       <li class="vertical-list-item">

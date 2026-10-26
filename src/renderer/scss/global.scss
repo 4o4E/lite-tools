@@ -2,6 +2,48 @@
   display: none !important;
 }
 
+// 拖选消息文字时只允许选中起始消息，避免复制出多条消息。
+body.lt-single-message-selecting {
+  .message {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+  }
+
+  .message:not(.lt-selection-root),
+  .message:not(.lt-selection-root) * {
+    &::selection {
+      background: transparent !important;
+      color: inherit !important;
+    }
+  }
+
+  .message.lt-selection-root,
+  .message.lt-selection-root .message-content__wrapper,
+  .message.lt-selection-root .message-content__wrapper * {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+  }
+
+  .message.lt-selection-root {
+    .lt-slot,
+    .lt-slot *,
+    .lt-time,
+    .lt-time-in-name,
+    .lt-recall,
+    .lt-repeat,
+    .lt-pic-mask,
+    .lt-add {
+      user-select: none !important;
+      -webkit-user-select: none !important;
+
+      &::selection {
+        background: transparent !important;
+        color: inherit !important;
+      }
+    }
+  }
+}
+
 .sys-notify__scroll-body.lt-hide-more-groups > :not(.notify-section) {
   display: none !important;
 }

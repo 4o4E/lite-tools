@@ -15,6 +15,7 @@ import {
   removeRepeatBtn,
 } from "./insertRepeatBtn";
 import { setupRepeatMenu } from "./repeatMenu";
+import { setupCopyToInputMenu } from "./copyToInputMenu";
 import { setupReactionEmojiExtension } from "./reactionEmojiExtension";
 import { bindUserNameAt } from "./nameAt";
 import { setupNudgeDoubleClick } from "./nudgeDoubleClick";
@@ -89,6 +90,7 @@ async function setupHandleMessages() {
   await configStore.ready;
   log("注册事件");
   const clearRepeatMenu = setupRepeatMenu(getMessageRecord);
+  const clearCopyMenu = setupCopyToInputMenu(getMessageRecord);
   setupReactionEmojiExtension();
   setupNudgeDoubleClick(getMessageRecord);
   setupNudgeMenu(getMessageRecord);
@@ -100,6 +102,7 @@ async function setupHandleMessages() {
     document.body.classList.toggle("repeat-message", config.message.repeatMessage.enabled);
     if (!messageConfigChanged(config.message)) return;
     clearRepeatMenu();
+    clearCopyMenu();
     document.querySelectorAll<MessageElement>(".message").forEach((messageEl) => {
       pendingSlots.delete(messageEl);
       removeRepeatBtn(messageEl);

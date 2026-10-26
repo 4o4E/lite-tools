@@ -80,6 +80,19 @@ async function initSettings(view: HTMLDivElement, config: Config) {
   initLink(view, config);
   // 初始化本地贴纸排序
   initLocalTagSortOptimized(view);
+  const clearFavoriteCache = view.querySelector<HTMLButtonElement>(".clear-native-favorite-cache")!;
+  clearFavoriteCache.addEventListener("click", async () => {
+    clearFavoriteCache.disabled = true;
+    try {
+      await lite_tools.clearNativeFavoriteStickerCache();
+      clearFavoriteCache.textContent = "已清空，请重新打开表情面板";
+    } catch (error) {
+      log("清空收藏表情缓存失败", error);
+      clearFavoriteCache.textContent = "清空失败，请重试";
+    } finally {
+      clearFavoriteCache.disabled = false;
+    }
+  });
   // debug
   view.querySelector("button.open-debug")?.addEventListener("click", () => {
     lite_tools.openDevWindow();
@@ -390,11 +403,11 @@ function initButton(view: HTMLDivElement, config: Config) {
 
           if (chooseType === "file" || chooseType === "folder") {
             setValueByPath(config, configPath, filePaths[0]);
-            configStore.setConfig(config);
+            configStore.setConfig(config, "user");
             dispatchEvent(view, configPath, filePaths[0]);
           } else {
             setValueByPath(config, configPath, filePaths);
-            configStore.setConfig(config);
+            configStore.setConfig(config, "user");
             dispatchEvent(view, configPath, filePaths);
           }
         }
@@ -426,7 +439,7 @@ function initInput(view: HTMLDivElement, config: Config) {
       if (el.hasAttribute("data-clear")) {
         el.addEventListener("click", () => {
           setValueByPath(config, configPath, "");
-          configStore.setConfig(config);
+          configStore.setConfig(config, "user");
           dispatchEvent(view, configPath, "");
         });
       }
@@ -437,7 +450,7 @@ function initInput(view: HTMLDivElement, config: Config) {
           value = parseInt(value);
         }
         setValueByPath(config, configPath, value);
-        configStore.setConfig(config);
+        configStore.setConfig(config, "user");
         dispatchEvent(view, configPath, el.value);
       });
     }
@@ -467,11 +480,11 @@ async function initRecallOptions(view: HTMLDivElement, config: Config) {
   });
   light.addEventListener("change", () => {
     config.message.preventRecall.customTextColor.light = light.value;
-    configStore.setConfig(config);
+    configStore.setConfig(config, "user");
   });
   dark.addEventListener("change", () => {
     config.message.preventRecall.customTextColor.dark = dark.value;
-    configStore.setConfig(config);
+    configStore.setConfig(config, "user");
   });
 }
 
@@ -533,7 +546,7 @@ function initSwitchButton(view: HTMLDivElement, config: Config) {
       const newValue = el.classList.toggle("is-active");
       log("更新配置项", configPath, newValue);
       setValueByPath(config, configPath, newValue);
-      configStore.setConfig(config);
+      configStore.setConfig(config, "user");
       dispatchEvent(view, configPath, newValue);
       // 彩蛋触发函数
       // switchButtons();
@@ -581,7 +594,7 @@ function initSelectMenu(view: HTMLDivElement, config: Config) {
         const showVlaue = target.innerText;
         log("更新下拉配置项", item, configPath, newValue);
         setValueByPath(config, configPath, newValue);
-        configStore.setConfig(config);
+        configStore.setConfig(config, "user");
         item.querySelector("input.setting-input")?.setAttribute("value", showVlaue);
         item.querySelector("div.setting-view")?.setAttribute("data-value", showVlaue);
         dispatchEvent(view, configPath, newValue);
@@ -635,7 +648,7 @@ function createOptionItems<T extends OptionItem>(
         log("更新配置项", objKey, index, key, active);
         setValueByPath(config, `${objKey}[${index}].${String(key)}`, active);
         switchEl.classList.toggle("is-active", active);
-        configStore.setConfig(config);
+        configStore.setConfig(config, "user");
       });
       const span = document.createElement("span");
       span.classList.add("q-switch__handle");

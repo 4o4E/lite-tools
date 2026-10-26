@@ -1,8 +1,9 @@
 import { Readable } from "stream";
 import { join } from "path";
-import { writeFileSync, mkdirSync } from "fs";
+import { mkdirSync } from "fs";
 import { spawn } from "child_process";
 import zlib from "zlib";
+import { writeConfigFile } from "@/main/utils/configFile";
 
 import { configManager } from "@/main/modules/configManager";
 import { settingsWindow } from "@/main/utils/windowTracker";
@@ -114,7 +115,7 @@ class TgStickerDownloader {
 
         const folderPath = join(configManager.value.localStickers.path, data.result.name);
         const stickerConfigPath = join(folderPath, "sticker.json");
-        writeFileSync(stickerConfigPath, JSON.stringify(stickerConfig, null, 2));
+        writeConfigFile(stickerConfigPath, JSON.stringify(stickerConfig, null, 2), "automatic");
         localStickers.notifyStickerStoreUpdated();
 
         if (downloadFailedNum === 0) {

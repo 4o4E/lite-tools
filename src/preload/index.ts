@@ -6,9 +6,9 @@ import type { StickerStore, Sticker } from "@/common/types/localStickers";
 
 const exposeFunctions = {
   // 配置相关
-  updateConfig: (config: Config) => ipcRenderer.send("lite_tools.updateConfig", config),
+  updateConfig: (config: Config, source: "user" | "automatic") =>
+    ipcRenderer.send("lite_tools.updateConfig", config, source),
   getConfig: async (): Promise<Config> => ipcRenderer.invoke("lite_tools.getConfig"),
-  isUserSpecific: (): boolean => ipcRenderer.sendSync("lite_tools.isUserSpecific"),
   isInitialized: (): boolean => ipcRenderer.sendSync("lite_tools.isInitialized"),
   onConfigChange: (callback: (config: Config) => void) =>
     ipcRenderer.on("lite_tools.configChanged", (_, config: Config) => callback(config)),
@@ -34,6 +34,10 @@ const exposeFunctions = {
   updateRecentStickers: (sticker: Sticker) => ipcRenderer.send("lite_tools.stickerStore.updateRecentStickers", sticker),
   fetchMarketEmoticon: (marketFaceElement: any) =>
     ipcRenderer.invoke("lite_tools.fetchMarketEmoticon", marketFaceElement),
+  getNativeFavoriteStickerAnimationMap: (): Promise<{ md5: string; src: string }[]> =>
+    ipcRenderer.invoke("lite_tools.nativeFavoriteStickers.animationMap"),
+  clearNativeFavoriteStickerCache: (): Promise<void> =>
+    ipcRenderer.invoke("lite_tools.nativeFavoriteStickers.clearCache"),
 
   // 通用操作接口
   copyFile: (sourceFilePath: string, targetFilePath: string) =>

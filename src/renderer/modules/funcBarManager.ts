@@ -45,7 +45,7 @@ async function updateTopFuncBar() {
         };
       });
       log("更新顶部栏目", configStore.value.topFuncBar);
-      configStore.setConfig(configStore.value);
+      configStore.setConfig(configStore.value, "automatic");
     }
   }
 
@@ -107,7 +107,7 @@ async function updateChatFuncBar() {
         };
       });
       log("更新聊天栏目", configStore.value.chatFuncBar);
-      configStore.setConfig(configStore.value);
+      configStore.setConfig(configStore.value, "automatic");
     }
   }
 

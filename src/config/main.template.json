@@ -3,6 +3,31 @@
     "console": false,
     "mainConsole": false
   },
+  "contextMenu": {
+    "highlight": {
+      "enabled": false,
+      "light": {
+        "copy": "#000000",
+        "forward": "#000000",
+        "collect": "#000000",
+        "multiple": "#000000",
+        "quote": "#008000",
+        "essence": "#000000",
+        "revoke": "#ff0000",
+        "delete": "#ff0000"
+      },
+      "dark": {
+        "copy": "#ffffff",
+        "forward": "#ffffff",
+        "collect": "#ffffff",
+        "multiple": "#ffffff",
+        "quote": "#008000",
+        "essence": "#ffffff",
+        "revoke": "#ff0000",
+        "delete": "#ff0000"
+      }
+    }
+  },
   "localStickers": {
     "enabled": false,
     "path": "",
@@ -57,6 +82,15 @@
     "removeReplyAt": false,
     "clickNameAt": true,
     "nativeNudge": false,
+    "copyToChatInput": {
+      "enabled": false
+    },
+    "nativeFavoriteStickers": {
+      "cacheEnabled": false,
+      "mergePages": 10,
+      "playAnimation": false,
+      "enlargePreview": false
+    },
     "repeatMessage": {
       "enabled": false,
       "doubleClick": false,

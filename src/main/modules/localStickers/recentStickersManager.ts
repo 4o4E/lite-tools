@@ -1,5 +1,5 @@
-import fs from "node:fs";
 import path from "node:path";
+import { readOptionalConfigFile, writeConfigFile } from "@/main/utils/configFile";
 import { configManager } from "@/main/modules/configManager";
 
 import type { Path, Sticker, Stickers, StickerPack } from "@/common/types/localStickers";
@@ -9,55 +9,79 @@ class RecentStickersManager {
   private recentStickersPath: string = "";
 
   private ensureConfigExists(): void {
-    try {
-      // 先查找目录下是否有sticker.json配置文件
-      if (fs.existsSync(this.recentStickersPath)) {
-        const stickers = JSON.parse(fs.readFileSync(this.recentStickersPath, "utf-8")) as Stickers;
-        this.recentStickers.stickers = stickers;
-        if (stickers.length > 0) {
-          this.recentStickers.icon = stickers[0].path;
-        }
-      } else {
-        this.recentStickers.stickers = [];
-        this.writeConfig(this.recentStickersPath, []);
-      }
-    } catch (err) {
-      this.recentStickers.stickers = [];
+    const contents = readOptionalConfigFile(this.recentStickersPath);
+    if (contents === undefined) {
       this.writeConfig(this.recentStickersPath, []);
+      this.recentStickers.stickers = [];
+      this.recentStickers.icon = "";
+      return;
     }
+
+    let stickers: Stickers;
+    try {
+      const parsed: unknown = JSON.parse(contents.toString("utf-8"));
+      if (
+        !Array.isArray(parsed) ||
+        parsed.some((sticker: unknown) => {
+          if (!sticker || typeof sticker !== "object") return true;
+          return (
+            !("path" in sticker) ||
+            typeof sticker.path !== "string" ||
+            !("label" in sticker) ||
+            typeof sticker.label !== "string"
+          );
+        })
+      ) {
+        throw new SyntaxError("Invalid recentStickers.json shape");
+      }
+      stickers = parsed as Stickers;
+    } catch {
+      this.writeConfig(this.recentStickersPath, []);
+      this.recentStickers.stickers = [];
+      this.recentStickers.icon = "";
+      return;
+    }
+
+    this.recentStickers.stickers = stickers;
+    this.recentStickers.icon = stickers[0]?.path ?? "";
   }
 
-  private writeConfig(path: string, stickers: Stickers) {
-    fs.writeFileSync(path, JSON.stringify(stickers, null, 2), "utf-8");
+  private writeConfig(filePath: string, stickers: Stickers) {
+    writeConfigFile(filePath, JSON.stringify(stickers, null, 2), "automatic");
   }
 
   public setRootPath(rootPath: string) {
+    const previousPath = this.recentStickersPath;
     this.recentStickersPath = path.join(rootPath, "recentStickers.json");
-    this.ensureConfigExists();
+    try {
+      this.ensureConfigExists();
+    } catch (error) {
+      this.recentStickersPath = previousPath;
+      throw error;
+    }
   }
 
   public updateRecentStickers(sticker: Sticker) {
-    const index = this.recentStickers.stickers.findIndex((item) => item.path === sticker.path);
-    if (index > -1) {
-      this.recentStickers.stickers.splice(index, 1);
-    }
-    this.recentStickers.icon = sticker.path;
-    this.recentStickers.stickers.unshift(sticker);
+    const stickers = this.recentStickers.stickers.filter((item) => item.path !== sticker.path);
+    stickers.unshift(sticker);
     const maxStickers =
       configManager.value.localStickers.stickersPerRow * configManager.value.localStickers.recentStickers.limit;
-    this.recentStickers.stickers = this.recentStickers.stickers.slice(0, maxStickers);
-    this.writeConfig(this.recentStickersPath, this.recentStickers.stickers);
+    const nextStickers = stickers.slice(0, maxStickers);
+    this.writeConfig(this.recentStickersPath, nextStickers);
+    this.recentStickers.stickers = nextStickers;
+    this.recentStickers.icon = sticker.path;
   }
 
   public deleteSticker(inputPath: Path) {
     const stickerPath = inputPath.replace(/\\/g, "/");
     const index = this.recentStickers.stickers.findIndex((item) => item.path === stickerPath);
     if (index > -1) {
-      this.recentStickers.stickers.splice(index, 1);
-      this.writeConfig(this.recentStickersPath, this.recentStickers.stickers);
-    }
-    if (this.recentStickers.icon === stickerPath && this.recentStickers.stickers.length) {
-      this.recentStickers.icon = this.recentStickers.stickers[0].path;
+      const nextStickers = this.recentStickers.stickers.filter((item) => item.path !== stickerPath);
+      this.writeConfig(this.recentStickersPath, nextStickers);
+      this.recentStickers.stickers = nextStickers;
+      if (this.recentStickers.icon === stickerPath && nextStickers.length) {
+        this.recentStickers.icon = nextStickers[0].path;
+      }
     }
   }
 

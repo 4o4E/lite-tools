@@ -1,5 +1,6 @@
 import path from "node:path";
 import fs from "node:fs";
+import { readOptionalConfigFile, writeConfigFile, type ConfigWriteSource } from "@/main/utils/configFile";
 import type { StickerPack, StickerConfig, InternalStickerPack } from "@/common/types/localStickers";
 
 // 定义支持的图片后缀
@@ -43,29 +44,9 @@ class StickerPacksManager {
   private ensurePackExists(dirPath: string): InternalStickerPack {
     let pack = this.stickerPacks.get(dirPath);
     if (!pack) {
-      try {
-        // 先查找目录下是否有sticker.json配置文件
-        const configPath = path.join(dirPath, "sticker.json");
-        if (fs.existsSync(configPath)) {
-          const config = JSON.parse(fs.readFileSync(configPath, "utf-8")) as StickerConfig;
-          pack = {
-            label: config.label || this.baseName(dirPath),
-            index: config.index || 0,
-            icon: config.icon || undefined,
-            dirPath: dirPath,
-            stickerPaths: new Map<string, number | undefined>(),
-          };
-        } else {
-          pack = {
-            label: this.baseName(dirPath),
-            index: 0,
-            icon: undefined,
-            dirPath: dirPath,
-            stickerPaths: new Map<string, number | undefined>(),
-          };
-          this.writeConfig(pack.dirPath, pack);
-        }
-      } catch (err) {
+      const configPath = path.join(dirPath, "sticker.json");
+      const configBytes = readOptionalConfigFile(configPath);
+      if (configBytes === undefined) {
         pack = {
           label: this.baseName(dirPath),
           index: 0,
@@ -73,9 +54,35 @@ class StickerPacksManager {
           dirPath: dirPath,
           stickerPaths: new Map<string, number | undefined>(),
         };
-        this.writeConfig(pack.dirPath, pack, true);
+        this.writeConfig(pack.dirPath, pack);
+      } else {
+        let config: StickerConfig;
+        try {
+          const parsed: unknown = JSON.parse(configBytes.toString("utf-8"));
+          if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+            throw new SyntaxError("Invalid sticker.json shape");
+          }
+          config = parsed as StickerConfig;
+        } catch (err) {
+          pack = {
+            label: this.baseName(dirPath),
+            index: 0,
+            icon: undefined,
+            dirPath: dirPath,
+            stickerPaths: new Map<string, number | undefined>(),
+          };
+          this.writeConfig(pack.dirPath, pack, true);
+          this.stickerPacks.set(dirPath, pack);
+          return pack;
+        }
+        pack = {
+          label: config.label || this.baseName(dirPath),
+          index: config.index || 0,
+          icon: config.icon || undefined,
+          dirPath: dirPath,
+          stickerPaths: new Map<string, number | undefined>(),
+        };
       }
-
       this.stickerPacks.set(dirPath, pack);
     }
     return pack;
@@ -88,28 +95,36 @@ class StickerPacksManager {
     return stickerPath.replace(this.rootPath + "/", "");
   }
 
-  private writeConfig(dirPath: string, pack: StickerConfig, rewrite = false) {
+  private writeConfig(
+    dirPath: string,
+    pack: StickerConfig,
+    rewrite = false,
+    source: ConfigWriteSource = "automatic",
+  ) {
     const configPath = path.join(dirPath, "sticker.json");
-    const currentConfig = rewrite
-      ? {}
-      : fs.existsSync(configPath)
-        ? JSON.parse(fs.readFileSync(configPath, "utf-8"))
-        : {};
-    fs.writeFileSync(
+    const configBytes = rewrite ? undefined : readOptionalConfigFile(configPath);
+    let currentConfig: Record<string, unknown> = {};
+    if (configBytes !== undefined) {
+      const parsed: unknown = JSON.parse(configBytes.toString("utf-8"));
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new SyntaxError("Invalid sticker.json shape");
+      }
+      currentConfig = parsed as Record<string, unknown>;
+    }
+    writeConfigFile(
       configPath,
       JSON.stringify(
         {
           ...currentConfig,
-          ...{
-            label: pack.label,
-            index: pack.index,
-            icon: pack.icon,
-            url: pack.url,
-          },
+          label: pack.label,
+          index: pack.index,
+          icon: pack.icon,
+          url: pack.url,
         },
         null,
         2,
       ),
+      source,
     );
   }
 
@@ -118,9 +133,14 @@ class StickerPacksManager {
     if (!pack) return;
 
     const configPath = path.join(dirPath, "sticker.json");
-    if (!fs.existsSync(configPath)) return;
+    const configBytes = readOptionalConfigFile(configPath);
+    if (configBytes === undefined) return;
 
-    const config = JSON.parse(fs.readFileSync(configPath, "utf-8")) as StickerConfig;
+    const parsed: unknown = JSON.parse(configBytes.toString("utf-8"));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new SyntaxError("Invalid sticker.json shape");
+    }
+    const config = parsed as StickerConfig;
     this.stickerPacks.set(dirPath, {
       ...pack,
       label: config.label,
@@ -152,21 +172,26 @@ class StickerPacksManager {
 
     if (!hasSticker) return;
 
-    pack.stickerPaths.delete(stickerPath);
-
     const baseName = path.basename(stickerPath);
-    if (pack.stickerPaths.size === 0) {
-      // 贴纸包如果删空了，则清空icon
-      if (pack.icon !== undefined) {
-        pack.icon = undefined;
-        this.writeConfig(pack.dirPath, pack);
+    if (pack.stickerPaths.size === 1 && pack.icon !== undefined) {
+      const nextPack = { ...pack, icon: undefined };
+      this.writeConfig(pack.dirPath, nextPack);
+      pack.icon = undefined;
+    } else if (pack.stickerPaths.size > 1 && pack.icon === baseName) {
+      let nextIcon: string | undefined;
+      for (const candidate of pack.stickerPaths.keys()) {
+        if (candidate !== stickerPath) {
+          nextIcon = path.basename(candidate);
+          break;
+        }
       }
-    } else if (pack.icon === baseName) {
-      // 贴纸没删空，且被删除的刚好是作为封面的贴纸，顺位继承下一个
-      pack.icon = path.basename(pack.stickerPaths.keys().next().value!);
-      this.writeConfig(pack.dirPath, pack);
+      const nextPack = { ...pack, icon: nextIcon };
+      this.writeConfig(pack.dirPath, nextPack);
+      pack.icon = nextIcon;
     }
+    pack.stickerPaths.delete(stickerPath);
   }
+
 
   public getPackList(sort: Config["localStickers"]["sort"] = "default"): StickerPack[] {
     return Array.from(this.stickerPacks.values()).map((pack) => {
@@ -207,8 +232,17 @@ class StickerPacksManager {
     if (["index", "label", "icon", "url"].includes(key)) {
       const pack = this.stickerPacks.get(packPath);
       if (!pack) return;
-      (pack as any)[key] = value;
-      this.writeConfig(pack.dirPath, pack);
+      const updatedConfig: StickerConfig = {
+        label: pack.label,
+        index: pack.index,
+        icon: pack.icon,
+      };
+      if (key === "index") updatedConfig.index = Number(value);
+      else if (key === "label") updatedConfig.label = String(value);
+      else if (key === "icon") updatedConfig.icon = String(value);
+      else updatedConfig.url = String(value);
+      this.writeConfig(pack.dirPath, updatedConfig, false, "user");
+      Object.assign(pack, { [key]: value });
     }
   }
 
