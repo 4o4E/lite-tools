@@ -1,8 +1,8 @@
 # 未发布
 
-- LiteLoader 1.4.1 的重复 preload 改为**插件动态修复**，不再修改 loader 文件：主进程在 `onBrowserWindowCreated` 里对 `webContents._getPreloadPaths` 和 `session.getPreloadScripts` 的返回值按路径（含 `type`）去重，抵消 loader 每个窗口叠加的重复前置。保留原顺序与 QQ 自己的条目。
+- LiteLoader 1.4.1 的重复 preload 改为**插件动态修复**，不再修改 loader 文件：主进程在 `onBrowserWindowCreated` 里对 `webContents._getPreloadPaths` 和 `session.getPreloadScripts` 的返回值按路径（含 `type`）去重，抵消 loader 每个窗口叠加的重复前置。loader 每次新建窗口都会用 `Proxy` 再包一层，而 `Proxy` 会透传被包裹函数的属性；去重包装按函数身份（`WeakSet`）判断，避免属性标记被透传后从第二个窗口起跳过包装。保留原顺序与 QQ 自己的条目。
 - LiteLoader 的 `src/preload.js`、`src/preload/module.js`、`src/preload/api.js` 已恢复官方原版；此前的文件补丁只保留在 `LiteLoader/.lt-patched-20261029/` 备查，不再参与运行。
-- 验证：Node 模拟 40 层 loader 代理后调用去重包装，返回 3 项（api.js、module.js、QQ preload）且顺序正确；`build:alpha` 与 `check:types` 通过（仅剩既有 `wallpaperManager.ts` 与未跟踪 `ipcDebugTmp.ts` 的错误）。运行验证需重启 QQ 加载主进程代码，重启后新窗口的重复绑定错误应为 0、`JS_WILL_LOAD` 应回到约 200–300 ms。
+- 验证：`node --test tests/*.test.cjs` 12 项通过，其中 `preloadDedupe.test.cjs` 按 loader 的包装顺序模拟 40 个窗口、每个窗口触发两次钩子，两个列表均为 api.js、module.js、QQ preload 各一项。运行中的 QQ 实测：重启前重载池化窗口 `JS_WILL_LOAD` 4693 ms、同一文档插件 preload 执行 59 次；重启后 5 个窗口 `JS_WILL_LOAD` 393–1312 ms，重复绑定错误 0，每个文档的插件 preload 只执行 1 次。`build:alpha` 通过；`check:types` 仍只剩既有 `wallpaperManager.ts:166,172` 与未跟踪 `ipcDebugTmp.ts` 的错误。
 
 - 图片查看器在 QQ 池化的 `#/blank` 窗口中漏初始化：这类窗口以 `#/blank` 加载、随后原地导航到 `#/image-viewer`，`getHash()` 已在 `#/blank` 解析，导致缩放增强、点击关闭和 Esc 处理都没有注册。现在 `#/blank` / `#/` 也会等待查看器 DOM 后初始化一次。
 - Esc 关闭改走标题栏“关闭”：QQ 原生 Esc 会隐藏后再销毁窗口，立刻重开需要新建窗口；标题栏关闭只隐藏窗口，可复用。拦截在 preload 阶段通过 `executeInMainWorld` 注册到主世界，早于 QQ 自己的监听；右键菜单、编辑器和视频打开时不拦截。
