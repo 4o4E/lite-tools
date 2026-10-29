@@ -116,6 +116,46 @@ const exposeFunctions = {
   },
 };
 
-contextBridge.exposeInMainWorld("lite_tools", exposeFunctions);
+/**
+ * QQ 在 renderer 脚本之前注册 Escape 监听：Esc 会先隐藏再销毁图片查看器窗口，
+ * 而标题栏“关闭”只隐藏窗口，下一次打开可复用。必须在 QQ 注册之前拦截，
+ * 因此 preload 阶段通过 executeInMainWorld 在主世界安装监听；
+ * 渲染进程只负责在“图片查看器优化”开启时设置 dataset 标志。
+ */
+function setupImageViewerEscape() {
+  if (typeof contextBridge.executeInMainWorld !== "function") return;
+  contextBridge.executeInMainWorld({
+    func: () => {
+      const scope = globalThis as typeof globalThis & { __ltViewerEscInstalled?: boolean };
+      if (scope.__ltViewerEscInstalled) return;
+      scope.__ltViewerEscInstalled = true;
+      window.addEventListener(
+        "keydown",
+        (event) => {
+          if (event.key !== "Escape" || event.repeat) return;
+          if (document.documentElement.dataset.ltImageViewerEsc !== "1") return;
+          if (document.querySelector(".q-context-menu, embed, [contenteditable='true'], .ProseMirror, .ck-editor__editable")) return;
+          const closeButton = document.querySelector<HTMLElement>(`div[aria-label="关闭"]`);
+          if (!closeButton || typeof closeButton.click !== "function") return;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          closeButton.click();
+        },
+        true
+      );
+    },
+    args: [],
+  });
+}
+
+// LiteLoader（本机 1.4.1）会在同一文档中重复执行插件 preload（新窗口实测单插件 63–77 次），
+// 重复 exposeInMainWorld 会抛出 “Cannot bind an API on top of an existing property”。
+// 用隔离世界的 globalThis 做幂等保护，只绑定一次。
+const preloadScope = globalThis as typeof globalThis & { __liteToolsPreloadBound?: boolean };
+if (!preloadScope.__liteToolsPreloadBound) {
+  preloadScope.__liteToolsPreloadBound = true;
+  setupImageViewerEscape();
+  contextBridge.exposeInMainWorld("lite_tools", exposeFunctions);
+}
 
 export type LiteTools = typeof exposeFunctions;

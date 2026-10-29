@@ -31,6 +31,12 @@ export async function main() {
       break;
     case "#/forward":
       break;
+    case "#/blank":
+    case "#/":
+      // QQ 的图片查看器窗口来自池化的 #/blank 窗口：先以 #/blank 加载、随后原地导航到
+      // #/image-viewer，getHash 已在 #/blank 解析完成，需要在查看器 DOM 出现后再初始化。
+      setupImageViewer();
+      break;
     case "#/image-viewer":
       setupImageViewer();
       break;

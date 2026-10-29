@@ -1,5 +1,19 @@
 # 未发布
 
+- LiteLoader 1.4.1 的重复 preload 改为**插件动态修复**，不再修改 loader 文件：主进程在 `onBrowserWindowCreated` 里对 `webContents._getPreloadPaths` 和 `session.getPreloadScripts` 的返回值按路径（含 `type`）去重，抵消 loader 每个窗口叠加的重复前置。保留原顺序与 QQ 自己的条目。
+- LiteLoader 的 `src/preload.js`、`src/preload/module.js`、`src/preload/api.js` 已恢复官方原版；此前的文件补丁只保留在 `LiteLoader/.lt-patched-20261029/` 备查，不再参与运行。
+- 验证：Node 模拟 40 层 loader 代理后调用去重包装，返回 3 项（api.js、module.js、QQ preload）且顺序正确；`build:alpha` 与 `check:types` 通过（仅剩既有 `wallpaperManager.ts` 与未跟踪 `ipcDebugTmp.ts` 的错误）。运行验证需重启 QQ 加载主进程代码，重启后新窗口的重复绑定错误应为 0、`JS_WILL_LOAD` 应回到约 200–300 ms。
+
+- 图片查看器在 QQ 池化的 `#/blank` 窗口中漏初始化：这类窗口以 `#/blank` 加载、随后原地导航到 `#/image-viewer`，`getHash()` 已在 `#/blank` 解析，导致缩放增强、点击关闭和 Esc 处理都没有注册。现在 `#/blank` / `#/` 也会等待查看器 DOM 后初始化一次。
+- Esc 关闭改走标题栏“关闭”：QQ 原生 Esc 会隐藏后再销毁窗口，立刻重开需要新建窗口；标题栏关闭只隐藏窗口，可复用。拦截在 preload 阶段通过 `executeInMainWorld` 注册到主世界，早于 QQ 自己的监听；右键菜单、编辑器和视频打开时不拦截。
+- 验证：新建文档实测 `__ltViewerEscInstalled` 为 true；`data-lt-image-viewer-esc=1` 时 Esc 被 `preventDefault`、点击关闭按钮，模拟的 QQ document/window 监听均未执行；标志为 0 或存在 `.q-context-menu` 时不拦截。`build:alpha` 与 `check:types` 通过（仅剩既有 `wallpaperManager.ts:166,172` 与未跟踪 `ipcDebugTmp.ts` 的错误）。
+
+- 修复图片查看器优化在窗口刚打开时收到无来源 `pointerup` 时误执行 `moveTo(0,0)` / `resizeTo(0,0)` 的问题：只有同一次左键按下之后才处理抬起，拖拽结束才恢复位置。单击图片本体不再触发“关闭”，背景/缩略图/滚动条区域仍可单击关闭，双击缩放和拖动保持原生。
+- LiteLoader（本机 1.4.1）会在同一文档重复执行插件 preload（新窗口实测 63–77 次；`hook.js` 每次调用 `_getPreloadPaths` / `session.getPreloadScripts` 都前置 loader 自身 preload，且每个窗口构造都会再次包裹共享的 session 方法，没有去重或一次性保护）。`lite_tools` 与 `lt_showRecallList` 的 `exposeInMainWorld` 增加隔离世界幂等标记，重复执行只绑定一次，不再刷 “Cannot bind an API on top of an existing property”。
+- `notoEmoji.json`（约 1 MB，165 张 base64 PNG）不再内联进 renderer：构建时复制到 `dist/assets/notoEmoji.json` 并随 zip 打包，聊天页启用 Noto 表情时按需读取，数据就绪后再装饰。`index.ll.js` 1,199,257 B → 164,584 B，减少每个 QQ 窗口（空白池、资料卡、图片查看器）的脚本解析量。
+
+验证：`build:alpha` 通过；产物含 `dist/assets/notoEmoji.json`（1,035,167 B）且已进 zip。重启后重载运行中的 `#/chat` 窗口：其他插件仍各报 63 次重复绑定，lite-tools 为 0 次；渲染进程实际 `fetch` 资产返回 200 / 1,034,837 B / 93ms，`😊` 为 data URL。用临时探针在真实 renderer 中加载构建后的 `setupImageViewer` 并伪造查看器 DOM：无 pointerdown 的 pointerup 无任何动作，点击图片本体不关闭，点击空白内容区触发一次关闭，拖动仍执行 `moveTo` + `resizeTo`。`check:types` 仅剩既有 `wallpaperManager.ts:166,172` 与未跟踪 `ipcDebugTmp.ts` 的错误。
+
 - 提交前 review 修复：恢复“复制到聊天框”菜单的文字和图标；输入框有选区时在末尾插入，不删除草稿；消息选择复制保留换行及首尾空白，无剪贴板接口时不阻止原生复制。
 - 迁移时即使旧索引目标仍存在，也比较当前账号回退文件的修改时间；修复收藏请求进行中开启缓存时遗漏已有分页，以及动画失效后的悬浮预览回退。
 

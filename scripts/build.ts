@@ -1,5 +1,5 @@
 import { build, context, BuildOptions, Plugin } from "esbuild";
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync, copyFileSync } from "node:fs";
 import { basename, join, extname, dirname } from "node:path";
 import { execSync } from "node:child_process";
 import chokidar from "chokidar";
@@ -11,6 +11,9 @@ const isAlpha = process.argv.includes("--alpha");
 
 const SCSS_SRC_DIR = "./src/renderer/scss";
 const OUT_CSS_DIR = "./dist/css";
+const NOTO_EMOJI_SRC = "./src/assets/data/notoEmoji.json";
+const NOTO_EMOJI_OUT = "./dist/assets/notoEmoji.json";
+const NOTO_EMOJI_WATCH_DIR = "./src/assets/data";
 const packageJson = JSON.parse(readFileSync("package.json", "utf-8"));
 const BUILD_TIME_BANNER_RE = /^\/\/ Build time: .*\r?\n/;
 
@@ -203,12 +206,27 @@ function watchScss() {
     });
 }
 
+// 按需加载的 Noto 表情数据：不内联进 renderer，复制到 dist/assets 由运行时 fetch。
+function copyNotoEmojiAsset() {
+  if (!existsSync(dirname(NOTO_EMOJI_OUT))) mkdirSync(dirname(NOTO_EMOJI_OUT), { recursive: true });
+  copyFileSync(NOTO_EMOJI_SRC, NOTO_EMOJI_OUT);
+  console.log(`[Asset] ${basename(NOTO_EMOJI_SRC)} → ${NOTO_EMOJI_OUT}`);
+}
+
+function watchNotoEmojiAsset() {
+  chokidar
+    .watch(NOTO_EMOJI_WATCH_DIR, { ignoreInitial: true, ignored: (path) => !path.endsWith(".json") })
+    .on("all", () => copyNotoEmojiAsset());
+}
+
 // 批量构建
 async function runBuild() {
+  copyNotoEmojiAsset();
   if (isDev) {
     console.log("Starting development build...");
     compileAllScss();
     watchScss();
+    watchNotoEmojiAsset();
     const contexts = await Promise.all(
       builds.map(async ({ config, watchHtml }) => {
         const ctx = await context(config);
@@ -243,6 +261,7 @@ async function runBuild() {
         }),
       );
       const zip = new AdmZip();
+      zip.addLocalFolder("dist/assets", "dist/assets");
       zip.addLocalFolder("dist/css", "dist/css");
       zip.addLocalFolder("dist/main", "dist/main");
       zip.addLocalFolder("dist/preload", "dist/preload");

@@ -8,6 +8,10 @@ const exposeFunctions = {
   sendBroadcast: (channelName: any, payload: any) => ipcRenderer.send("lite_tools.broadcast", channelName, payload),
 };
 
-contextBridge.exposeInMainWorld("lt_showRecallList", exposeFunctions);
+const preloadScope = globalThis as typeof globalThis & { __ltRecallPreloadBound?: boolean };
+if (!preloadScope.__ltRecallPreloadBound) {
+  preloadScope.__ltRecallPreloadBound = true;
+  contextBridge.exposeInMainWorld("lt_showRecallList", exposeFunctions);
+}
 
 export type Lt_showRecallList = typeof exposeFunctions;

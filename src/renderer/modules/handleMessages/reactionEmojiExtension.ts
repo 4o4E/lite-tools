@@ -1,8 +1,7 @@
 import { aioStore } from "@/renderer/modules/aioStore";
 import { configStore } from "@/renderer/modules/configStore";
 import { onComponentMount } from "@/renderer/modules/vueComponentTracker";
-
-import notoEmojiData from "@/assets/data/notoEmoji.json";
+import { importTextAsset } from "@/renderer/utils/importAsset";
 
 interface EmojiRecord {
   path?: unknown;
@@ -24,7 +23,34 @@ interface EmojiComponent {
   subTree?: unknown;
 }
 
-const notoEmojiMap = notoEmojiData as Record<string, string>;
+const notoEmojiMapPath = "assets";
+const notoEmojiMapFile = "notoEmoji.json";
+
+/**
+ * 数据约 1 MB（165 张 base64 PNG）。内联进 renderer 会让每个窗口都编译这 1 MB，
+ * 而 Noto 表情只在聊天页启用时使用，因此改为按需从 dist/assets 读取。
+ */
+let notoEmojiMap: Record<string, string> | null = null;
+let notoEmojiMapLoading: Promise<void> | null = null;
+
+function loadNotoEmojiMap(): Promise<void> {
+  if (notoEmojiMap) return Promise.resolve();
+  notoEmojiMapLoading ??= importTextAsset(notoEmojiMapPath, notoEmojiMapFile)
+    .then((text) => {
+      const parsed: unknown = JSON.parse(text);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        notoEmojiMap = parsed as Record<string, string>;
+      }
+    })
+    .catch((error) => {
+      console.error("[lite-tools] Noto 表情数据加载失败", error);
+    })
+    .finally(() => {
+      notoEmojiMapLoading = null;
+    });
+  return notoEmojiMapLoading;
+}
+
 const NOTO_FONT_URL =
   "https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/2D/fonts/NotoColorEmoji_WindowsCompatible.ttf";
 const EMOJI_UNICODE_RANGE =
@@ -48,7 +74,7 @@ function textEmojiSize(element: HTMLElement) {
 }
 
 function createNotoEmojiImage(character: string, size?: number) {
-  const data = notoEmojiMap[character];
+  const data = notoEmojiMap?.[character];
   if (!data) return null;
   const image = document.createElement("img");
   image.src = data;
@@ -74,7 +100,7 @@ function emojiFromImageSource(source: string) {
 function replaceEmojiImage(image: HTMLImageElement) {
   if (image.dataset.ltNoto) return;
   const character = emojiFromImageSource(image.getAttribute("src") || "");
-  const data = character ? notoEmojiMap[character] : "";
+  const data = character ? notoEmojiMap?.[character] : "";
   if (!data) return;
   const replacement = document.createElement("img");
   for (const attribute of Array.from(image.attributes)) {
@@ -88,7 +114,7 @@ function replaceEmojiImage(image: HTMLImageElement) {
 function replaceTextEmoji(element: HTMLElement) {
   if (element.dataset.ltNoto || element.children.length) return false;
   const character = (element.textContent || "").trim();
-  const data = notoEmojiMap[character];
+  const data = notoEmojiMap?.[character];
   if (!data) return false;
   const size = textEmojiSize(element);
   const image = document.createElement("img");
@@ -109,7 +135,7 @@ function decoratePanelItems(panel: Element) {
       continue;
     }
     const character = (item.textContent || "").trim();
-    if (!notoEmojiMap[character]) continue;
+    if (!notoEmojiMap?.[character]) continue;
     const replacement = createNotoEmojiImage(character, textEmojiSize(item));
     if (!replacement) continue;
     item.dataset.ltEmoji = character;
@@ -229,7 +255,7 @@ function decorateReactionItems() {
   for (const span of Array.from(document.querySelectorAll(".reaction-item-expression-emoji"))) {
     if (!(span instanceof HTMLElement) || span.dataset.ltNoto) continue;
     const character = (span.textContent || "").trim();
-    const source = notoEmojiMap[character] || notoRemoteUrl(character);
+    const source = notoEmojiMap?.[character] || notoRemoteUrl(character);
     if (!source) continue;
     const image = document.createElement("img");
     image.src = source;
@@ -285,6 +311,8 @@ function setupReactionEmojiExtension() {
     decorateScheduled = true;
     requestAnimationFrame(() => {
       decorateScheduled = false;
+      // 数据未就绪时不装饰，避免反应面板提前回退到 CDN 并打上 ltNoto 标记。
+      if (!notoEmojiMap) return;
       decorateGlobalEmojiImages();
       decoratePopupEmojiText();
       decorateReactionItems();
@@ -306,7 +334,7 @@ function setupReactionEmojiExtension() {
     cachedPanel = null;
     decorate();
   });
-  decorate();
+  void loadNotoEmojiMap().then(decorate);
 }
 
 export { setupReactionEmojiExtension };
