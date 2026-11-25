@@ -131,6 +131,7 @@
     }
   },
   "sideBar": {
+    "hidePromotions": false,
     "top": [
       {
         "name": "消息",

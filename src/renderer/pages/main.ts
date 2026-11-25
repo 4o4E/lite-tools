@@ -26,6 +26,7 @@ async function setupMainPage() {
   initNativeStickerEnhancer();
   updateTopSideBar(configStore.value);
   updateBottomSideBar(configStore.value);
+  document.documentElement.classList.toggle("lt-hide-sidebar-promotions", configStore.value.sideBar.hidePromotions);
   updateInterface(configStore.value);
   updateRecallConfig(configStore.value);
   setupHandleMessages();
@@ -40,6 +41,7 @@ async function setupMainPage() {
   });
   configStore.onChange((config) => {
     log("config changed", config);
+    document.documentElement.classList.toggle("lt-hide-sidebar-promotions", config.sideBar.hidePromotions);
     if (topSideBarhasChanged(config.sideBar.top)) {
       updateTopSideBar(config);
     }

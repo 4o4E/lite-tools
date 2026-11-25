@@ -2,6 +2,10 @@
   display: none !important;
 }
 
+.lt-hide-sidebar-promotions .sidebar__upper .nav-item-promo {
+  display: none !important;
+}
+
 // 拖选消息文字时只允许选中起始消息，避免复制出多条消息。
 body.lt-single-message-selecting {
   .message {
